@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  RefreshControl,
 } from 'react-native';
 import { colors } from '../../../../constants/colors';
 import { borderRadius, spacing } from '../../../../constants/spacing';
@@ -15,23 +16,25 @@ import { Icon } from '../../../../components/common/Icon';
 import { Badge } from '../../../../components/common/Badge';
 import { useInventory } from '../../../../context/InventoryContext';
 
-const FILTER_PILLS = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
+const FILTER_PILLS = ['All', 'Stockable', 'Consumable', 'Service', 'Low Stock'];
 
 export const ProductListView = ({ onSelectProduct, onCreateProduct }) => {
-  const { products } = useInventory();
+  const { products, fetchProducts, isLoadingProducts } = useInventory();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const matchSearch =
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.sku.toLowerCase().includes(search.toLowerCase());
+        (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.sku || '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.category || '').toLowerCase().includes(search.toLowerCase());
       if (!matchSearch) return false;
 
-      if (activeFilter === 'In Stock') return p.stock > 0;
-      if (activeFilter === 'Low Stock') return p.stock > 0 && p.stock <= p.minThreshold;
-      if (activeFilter === 'Out of Stock') return p.stock <= 0;
+      if (activeFilter === 'Stockable') return p.type === 'product';
+      if (activeFilter === 'Consumable') return p.type === 'consu';
+      if (activeFilter === 'Service') return p.type === 'service';
+      if (activeFilter === 'Low Stock') return p.type === 'product' && p.stock > 0 && p.stock <= p.minThreshold;
       return true;
     });
   }, [products, search, activeFilter]);
@@ -44,7 +47,7 @@ export const ProductListView = ({ onSelectProduct, onCreateProduct }) => {
           <Icon name="search" size={16} color={colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search products..."
+            placeholder="Search products by SKU, name or category..."
             placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -67,31 +70,65 @@ export const ProductListView = ({ onSelectProduct, onCreateProduct }) => {
 
       {/* Filter Pills */}
       <View style={styles.pillsRow}>
-        {FILTER_PILLS.map((pill) => {
-          const isActive = activeFilter === pill;
-          return (
-            <TouchableOpacity
-              key={pill}
-              style={[styles.pill, isActive && styles.pillActive]}
-              onPress={() => setActiveFilter(pill)}
-            >
-              <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
-                {pill}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={FILTER_PILLS}
+          keyExtractor={(item) => item}
+          renderItem={({ item: pill }) => {
+            const isActive = activeFilter === pill;
+            return (
+              <TouchableOpacity
+                style={[styles.pill, isActive && styles.pillActive]}
+                onPress={() => setActiveFilter(pill)}
+              >
+                <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
+                  {pill}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
       </View>
 
       {/* Products FlatList */}
       <FlatList
         data={filtered}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={Boolean(isLoadingProducts)}
+            onRefresh={() => fetchProducts && fetchProducts()}
+            colors={[colors.odooPurple]}
+          />
+        }
         renderItem={({ item }) => {
-          const isLow = item.stock > 0 && item.stock <= item.minThreshold;
-          const isOut = item.stock <= 0;
+          const isService = item.type === 'service';
+          const isConsumable = item.type === 'consu';
+          const isLow = !isService && !isConsumable && item.stock > 0 && item.stock <= item.minThreshold;
+          const isOut = !isService && !isConsumable && item.stock <= 0;
+
+          const badgeLabel = isService
+            ? 'Service'
+            : isConsumable
+            ? 'Consumable'
+            : isOut
+            ? 'Out of Stock'
+            : isLow
+            ? 'Low Stock'
+            : 'In Stock';
+
+          const badgeVariant = isService
+            ? 'info'
+            : isConsumable
+            ? 'secondary'
+            : isOut
+            ? 'error'
+            : isLow
+            ? 'warning'
+            : 'success';
 
           return (
             <TouchableOpacity
@@ -99,21 +136,40 @@ export const ProductListView = ({ onSelectProduct, onCreateProduct }) => {
               activeOpacity={0.7}
               onPress={() => onSelectProduct(item)}
             >
-              <View style={styles.itemIconBox}>
-                <Icon name="box" size={20} color={colors.odooPurple} />
+              <View style={[styles.itemIconBox, isService && styles.iconBoxService]}>
+                <Icon
+                  name={isService ? 'operations' : 'box'}
+                  size={20}
+                  color={isService ? '#2563EB' : colors.odooPurple}
+                />
               </View>
 
               <View style={styles.itemInfoCol}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemSku}>{item.sku}</Text>
-                <Text style={styles.itemOnHand}>
-                  On Hand: {item.stock.toFixed(2)}
+                <Text style={styles.itemName} numberOfLines={1}>
+                  {item.name}
                 </Text>
+                <View style={styles.skuTypeRow}>
+                  <Text style={styles.itemSku}>{item.sku}</Text>
+                  <Text style={styles.dotSeparator}>•</Text>
+                  <Text style={styles.itemCategory}>{item.category || 'General'}</Text>
+                </View>
+                <View style={styles.stockPriceRow}>
+                  {!isService ? (
+                    <Text style={styles.itemOnHand}>
+                      On Hand: <Text style={styles.stockBold}>{Number(item.stock).toFixed(1)} {item.uom}</Text>
+                    </Text>
+                  ) : (
+                    <Text style={styles.itemOnHand}>Non-inventory item</Text>
+                  )}
+                  {item.sellPrice ? (
+                    <Text style={styles.itemPrice}>₹{Number(item.sellPrice).toLocaleString()}</Text>
+                  ) : null}
+                </View>
               </View>
 
               <Badge
-                label={isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}
-                variant={isOut ? 'error' : isLow ? 'warning' : 'success'}
+                label={badgeLabel}
+                variant={badgeVariant}
               />
             </TouchableOpacity>
           );
@@ -121,6 +177,9 @@ export const ProductListView = ({ onSelectProduct, onCreateProduct }) => {
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <Text style={styles.emptyText}>No products found matching filters.</Text>
+            <TouchableOpacity style={styles.emptyAddBtn} onPress={onCreateProduct}>
+              <Text style={styles.emptyAddBtnText}>+ Add Product</Text>
+            </TouchableOpacity>
           </View>
         }
       />
@@ -172,10 +231,8 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   pillsRow: {
-    flexDirection: 'row',
     paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    gap: spacing.xs + 2,
+    paddingVertical: spacing.sm + 2,
   },
   pill: {
     paddingVertical: 6,
@@ -184,6 +241,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: colors.border,
+    marginRight: 6,
   },
   pillActive: {
     backgroundColor: colors.odooPurple,
@@ -222,32 +280,75 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.md,
   },
+  iconBoxService: {
+    backgroundColor: '#DBEAFE',
+  },
   itemInfoCol: {
     flex: 1,
+    marginRight: spacing.xs,
   },
   itemName: {
     fontSize: fontSize.sm + 1,
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
+  skuTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 4,
+  },
   itemSku: {
-    fontSize: fontSize.xs,
+    fontSize: fontSize.xs - 1,
+    fontWeight: fontWeight.bold,
     color: colors.textMuted,
-    marginTop: 1,
+  },
+  dotSeparator: {
+    fontSize: fontSize.xs - 1,
+    color: colors.textMuted,
+  },
+  itemCategory: {
+    fontSize: fontSize.xs - 1,
+    color: colors.textSecondary,
+  },
+  stockPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    paddingRight: 6,
   },
   itemOnHand: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-    fontWeight: fontWeight.medium,
-    marginTop: 2,
+  },
+  stockBold: {
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  itemPrice: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.odooPurple,
   },
   emptyBox: {
     padding: spacing.xl,
     alignItems: 'center',
+    gap: 12,
   },
   emptyText: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
   },
+  emptyAddBtn: {
+    backgroundColor: colors.odooPurple,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: borderRadius.md,
+  },
+  emptyAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
 });
-

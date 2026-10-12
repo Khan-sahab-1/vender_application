@@ -21,6 +21,7 @@ export const DashboardView = ({ onNavigate }) => {
     uomCategories,
     uomList,
     productCategories,
+    attributes,
     warehouses,
     inventorySummary,
   } = useInventory();
@@ -133,6 +134,28 @@ export const DashboardView = ({ onNavigate }) => {
           </Text>
           <Text style={styles.overviewLabel}>Outgoing (Deliveries)</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Odoo Product Types Summary Breakdown */}
+      <View style={styles.typeBreakdownRow}>
+        <View style={styles.typeBadgeChip}>
+          <Text style={styles.typeBadgeNum}>
+            {inventorySummary?.stockable_products ?? products.filter((p) => p.type === 'product').length}
+          </Text>
+          <Text style={styles.typeBadgeLabel}>Stockable Products</Text>
+        </View>
+        <View style={styles.typeBadgeChip}>
+          <Text style={styles.typeBadgeNum}>
+            {inventorySummary?.consumable_products ?? products.filter((p) => p.type === 'consu').length}
+          </Text>
+          <Text style={styles.typeBadgeLabel}>Consumables</Text>
+        </View>
+        <View style={styles.typeBadgeChip}>
+          <Text style={styles.typeBadgeNum}>
+            {inventorySummary?.service_products ?? products.filter((p) => p.type === 'service').length}
+          </Text>
+          <Text style={styles.typeBadgeLabel}>Services</Text>
+        </View>
       </View>
 
       {/* Section 2: Warehouse Operations */}
@@ -259,7 +282,7 @@ export const DashboardView = ({ onNavigate }) => {
                 <Text style={styles.countBadgeText}>{uomList.length} Units</Text>
               </View>
             </View>
-            <Text style={styles.actionSubtitle}>Kilogram, Gram, Pieces, Liters with ratios</Text>
+            <Text style={styles.actionSubtitle}>Sales UoM & Purchase UoM with ratios</Text>
           </View>
           <Icon name="arrow-right" size={14} color={colors.textMuted} />
         </TouchableOpacity>
@@ -271,7 +294,7 @@ export const DashboardView = ({ onNavigate }) => {
           onPress={() => onNavigate('prod_cat')}
         >
           <View style={[styles.actionIconCircle, styles.circlePink]}>
-            <Icon name="operations" size={18} color="#BE185D" />
+            <Icon name="category" size={18} color="#BE185D" />
           </View>
           <View style={styles.actionTextCol}>
             <View style={styles.cardTitleRow}>
@@ -280,7 +303,28 @@ export const DashboardView = ({ onNavigate }) => {
                 <Text style={styles.countBadgeText}>{productCategories.length} Categories</Text>
               </View>
             </View>
-            <Text style={styles.actionSubtitle}>Hardware, Electronics, Fittings categorization</Text>
+            <Text style={styles.actionSubtitle}>Hierarchical tree with Auto-SKU prefixes</Text>
+          </View>
+          <Icon name="arrow-right" size={14} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        {/* Attributes & Variants */}
+        <TouchableOpacity
+          style={styles.actionCard}
+          activeOpacity={0.7}
+          onPress={() => onNavigate('attributes')}
+        >
+          <View style={[styles.actionIconCircle, styles.circleIndigo]}>
+            <Icon name="operations" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.actionTextCol}>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.actionTitle}>Attributes & Variants</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{attributes?.length || 0} Attributes</Text>
+              </View>
+            </View>
+            <Text style={styles.actionSubtitle}>Thickness, Color, Size matrix combinations</Text>
           </View>
           <Icon name="arrow-right" size={14} color={colors.textMuted} />
         </TouchableOpacity>
@@ -494,6 +538,34 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  typeBreakdownRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  typeBadgeChip: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
+  },
+  typeBadgeNum: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.odooPurple,
+  },
+  typeBadgeLabel: {
+    fontSize: fontSize.xs - 2,
+    color: colors.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
   },
 });
 

@@ -54,6 +54,15 @@ export const AuthProvider = ({ children }) => {
       if (Array.isArray(tenantList) && tenantList.length > 0) {
         setTenants(tenantList);
         setCurrentTenant(tenantList[0]);
+      } else if (data?.company) {
+        const compTenant = {
+          id: data.company.id,
+          name: data.company.name,
+          code: (data.company.name || 'COMP').slice(0, 4).toUpperCase(),
+          odoo_partner_id: data.company.odoo_partner_id,
+        };
+        setTenants([compTenant]);
+        setCurrentTenant(compTenant);
       } else if (userData?.tenant) {
         setTenants([userData.tenant]);
         setCurrentTenant(userData.tenant);

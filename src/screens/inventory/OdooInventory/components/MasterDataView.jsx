@@ -20,9 +20,16 @@ import { useInventory } from '../../../../context/InventoryContext';
 const MASTER_TABS = [
   { id: 'uom_cat', title: 'UoM Categories', icon: 'scale' },
   { id: 'uom', title: 'Units of Measure', icon: 'layers' },
-  { id: 'prod_cat', title: 'Product Categories', icon: 'operations' },
+  { id: 'prod_cat', title: 'Product Categories', icon: 'category' },
+  { id: 'attributes', title: 'Attributes & Variants', icon: 'operations' },
   { id: 'warehouses', title: 'Warehouses', icon: 'map-pin' },
-  { id: 'new_prod', title: '+ Add Product', icon: 'home' },
+  { id: 'new_prod', title: '+ Add Product', icon: 'box' },
+];
+
+const PRODUCT_TYPES = [
+  { id: 'product', label: 'Stockable Product', badge: 'Inventory Tracked' },
+  { id: 'consu', label: 'Consumable', badge: 'Not Tracked' },
+  { id: 'service', label: 'Service', badge: 'Non-Material' },
 ];
 
 export const MasterDataView = ({
@@ -37,6 +44,10 @@ export const MasterDataView = ({
     addUom,
     productCategories,
     addProductCategory,
+    getNextSku,
+    attributes,
+    addAttribute,
+    addAttributeValue,
     warehouses,
     addWarehouse,
     addProduct,
@@ -58,7 +69,7 @@ export const MasterDataView = ({
   // Form states for UoM
   const [uomName, setUomName] = useState('');
   const [uomCategoryId, setUomCategoryId] = useState(
-    uomCategories[0]?.id || uomCategories[0]?._id || ''
+    uomCategories[0]?.id || ''
   );
   const [uomSymbol, setUomSymbol] = useState('');
   const [uomRatio, setUomRatio] = useState('1');
@@ -68,21 +79,48 @@ export const MasterDataView = ({
   const [prodCatName, setProdCatName] = useState('');
   const [prodCatCode, setProdCatCode] = useState('');
   const [prodCatDesc, setProdCatDesc] = useState('');
+  const [prodCatParentId, setProdCatParentId] = useState('');
+
+  // Form states for Attribute & Attribute Value
+  const [attrName, setAttrName] = useState('');
+  const [attrValuesText, setAttrValuesText] = useState('');
+  const [activeAttrForNewValue, setActiveAttrForNewValue] = useState(null);
+  const [newValName, setNewValName] = useState('');
 
   // Form states for Warehouse
   const [whName, setWhName] = useState('');
   const [whCode, setWhCode] = useState('');
   const [whAddress, setWhAddress] = useState('');
 
-  // Form states for Product
+  // Form states for Product (Odoo Standard)
   const [prodName, setProdName] = useState('');
   const [prodSku, setProdSku] = useState('');
   const [prodBarcode, setProdBarcode] = useState('');
-  const [prodCategory, setProdCategory] = useState(productCategories[0]?.name || 'Electronics');
-  const [prodUom, setProdUom] = useState('Units(s)');
+  const [prodType, setProdType] = useState('product'); // 'product', 'consu', 'service'
+  const [prodCategoryId, setProdCategoryId] = useState(productCategories[0]?.id || '');
+  const [prodCategoryName, setProdCategoryName] = useState(productCategories[0]?.name || 'Electronics');
+  const [prodUomId, setProdUomId] = useState(uomList[0]?.id || '');
+  const [prodUomPoId, setProdUomPoId] = useState(uomList[0]?.id || '');
   const [prodCost, setProdCost] = useState('');
   const [prodPrice, setProdPrice] = useState('');
-  const [prodInitialStock, setProdInitialStock] = useState('');
+  const [prodInitialStock, setProdInitialStock] = useState('10');
+  const [prodDesc, setProdDesc] = useState('');
+  const [autoSkuHint, setAutoSkuHint] = useState('');
+
+  // Auto-fetch Next SKU whenever category is changed in Product Creation
+  const handleSelectProductCategory = async (cat) => {
+    setProdCategoryId(cat.id);
+    setProdCategoryName(cat.name);
+    try {
+      const res = await getNextSku(cat.id);
+      if (res?.next_sku) {
+        setProdSku(res.next_sku);
+        setAutoSkuHint(`Auto-assigned prefix [${res.prefix}]`);
+      }
+    } catch (_e) {
+      // ignore
+    }
+  };
 
   const handleOpenCreateModal = () => {
     setModalVisible(true);
@@ -102,11 +140,11 @@ export const MasterDataView = ({
       setUomCatDesc('');
       setModalVisible(false);
       Alert.alert('Success', `UoM Category "${uomCatName}" created successfully!`);
-    } catch (_err) {
+    } catch (err) {
       setUomCatName('');
       setUomCatDesc('');
       setModalVisible(false);
-      Alert.alert('Category Added', `UoM Category "${uomCatName}" added to catalog.`);
+      Alert.alert('Category Added', `UoM Category "${uomCatName}" added.`);
     }
   };
 
@@ -115,15 +153,14 @@ export const MasterDataView = ({
       Alert.alert('Required', 'Please enter Unit name.');
       return;
     }
-    const targetCatId =
-      uomCategoryId || uomCategories[0]?.id || uomCategories[0]?._id || 'cat_default';
+    const targetCatId = uomCategoryId || uomCategories[0]?.id;
 
     try {
       await addUom({
         categoryId: targetCatId,
         name: uomName.trim(),
         symbol: (uomSymbol.trim() || uomName.slice(0, 3)).toUpperCase(),
-        ratio: parseFloat(uomRatio) || 1,
+        ratio: parseFloat(uomRatio) || 1.0,
         isBaseUnit: Boolean(uomIsBaseUnit),
       });
       setUomName('');
@@ -132,12 +169,12 @@ export const MasterDataView = ({
       setUomIsBaseUnit(true);
       setModalVisible(false);
       Alert.alert('Success', `UoM "${uomName}" created successfully!`);
-    } catch (_err) {
+    } catch (err) {
       setUomName('');
       setUomSymbol('');
       setUomRatio('1');
       setModalVisible(false);
-      Alert.alert('Unit Added', `UoM "${uomName}" added to catalog.`);
+      Alert.alert('Unit Added', `UoM "${uomName}" added.`);
     }
   };
 
@@ -147,89 +184,135 @@ export const MasterDataView = ({
       return;
     }
     const finalCode =
-      prodCatCode.trim() || `CAT-${prodCatName.slice(0, 3).toUpperCase()}`;
+      prodCatCode.trim() || prodCatName.slice(0, 3).toUpperCase();
 
     try {
       await addProductCategory({
         name: prodCatName.trim(),
         code: finalCode,
         description: prodCatDesc.trim() || `${prodCatName} category`,
+        parentId: prodCatParentId || null,
       });
       setProdCatName('');
       setProdCatCode('');
       setProdCatDesc('');
+      setProdCatParentId('');
       setModalVisible(false);
-      Alert.alert('Success', `Product Category "${prodCatName}" created successfully!`);
-    } catch (_err) {
+      Alert.alert('Success', `Product Category "${prodCatName}" [${finalCode}] created!`);
+    } catch (err) {
       setProdCatName('');
       setProdCatCode('');
       setProdCatDesc('');
       setModalVisible(false);
-      Alert.alert('Category Added', `Category "${prodCatName}" added to catalog.`);
+      Alert.alert('Category Added', `Category "${prodCatName}" added.`);
     }
   };
 
-  const handleSaveWarehouse = () => {
+  const handleSaveAttribute = async () => {
+    if (!attrName.trim()) {
+      Alert.alert('Required', 'Please enter Attribute Name (e.g. Thickness, Color).');
+      return;
+    }
+    const valuesArray = attrValuesText
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+    try {
+      await addAttribute({
+        name: attrName.trim(),
+        values: valuesArray,
+      });
+      setAttrName('');
+      setAttrValuesText('');
+      setModalVisible(false);
+      Alert.alert('Success', `Attribute "${attrName}" created with ${valuesArray.length} values.`);
+    } catch (err) {
+      setAttrName('');
+      setAttrValuesText('');
+      setModalVisible(false);
+      Alert.alert('Attribute Added', `Attribute "${attrName}" added.`);
+    }
+  };
+
+  const handleAddAttributeValueSubmit = async () => {
+    if (!newValName.trim() || !activeAttrForNewValue) return;
+    try {
+      await addAttributeValue(activeAttrForNewValue.id, newValName.trim());
+      setNewValName('');
+      setActiveAttrForNewValue(null);
+      Alert.alert('Success', `Value "${newValName}" added!`);
+    } catch (err) {
+      setNewValName('');
+      setActiveAttrForNewValue(null);
+    }
+  };
+
+  const handleSaveWarehouse = async () => {
     if (!whName.trim() || !whCode.trim()) {
       Alert.alert('Required', 'Please enter Warehouse Name and Short Code.');
       return;
     }
-    addWarehouse({
-      id: `wh_${Date.now()}`,
-      name: whName.trim(),
-      code: whCode.trim().toUpperCase(),
-      address: whAddress.trim() || 'Central Logistic Depot',
-      viewLocation: `${whCode.trim().toUpperCase()}/Stock`,
-      inLocation: `${whCode.trim().toUpperCase()}/Input`,
-      outLocation: `${whCode.trim().toUpperCase()}/Output`,
-    });
-    setWhName('');
-    setWhCode('');
-    setWhAddress('');
-    setModalVisible(false);
-    Alert.alert('Success', `Warehouse "${whName}" created successfully!`);
+    try {
+      await addWarehouse({
+        name: whName.trim(),
+        code: whCode.trim().toUpperCase(),
+        address: whAddress.trim() || 'Central Logistic Depot',
+      });
+      setWhName('');
+      setWhCode('');
+      setWhAddress('');
+      setModalVisible(false);
+      Alert.alert('Success', `Warehouse "${whName}" created successfully!`);
+    } catch (err) {
+      setWhName('');
+      setWhCode('');
+      setWhAddress('');
+      setModalVisible(false);
+    }
   };
 
-  const handleSaveProduct = () => {
-    if (!prodName.trim() || !prodSku.trim()) {
-      Alert.alert('Required', 'Please enter Product Name and SKU.');
+  // Product Save (Odoo Standard: Type, Auto-SKU, Purchase UOM, decoupled warehouse)
+  const handleSaveProduct = async () => {
+    if (!prodName.trim()) {
+      Alert.alert('Required', 'Please enter Product Name.');
       return;
     }
-    const initialQty = parseFloat(prodInitialStock) || 0;
-    const newProd = {
-      id: `prod_${Date.now()}`,
+
+    const payload = {
       name: prodName.trim(),
-      sku: prodSku.trim().toUpperCase(),
-      barcode: prodBarcode.trim() || `${Date.now()}`.slice(-12),
-      category: prodCategory,
-      uom: prodUom,
-      purchaseUom: prodUom,
-      productType: 'Storable Product',
-      warehouse: warehouses[0]?.name || 'Main Warehouse',
-      costPrice: parseFloat(prodCost) || 0,
-      sellPrice: parseFloat(prodPrice) || 0,
-      stock: initialQty,
-      forecasted: initialQty,
-      allocated: 0,
-      available: initialQty,
-      minThreshold: 10,
-      shelfLocation: 'Aisle 1 - Section A',
-      description: 'Odoo inventory managed product.',
-      warehouseBreakdown: {
-        [warehouses[0]?.name || 'Main Warehouse']: initialQty,
-      },
+      sku: prodSku.trim().toUpperCase() || null,
+      type: prodType, // 'product', 'consu', 'service'
+      barcode: prodBarcode.trim() || null,
+      category_id: prodCategoryId || null,
+      uom_id: prodUomId || null,
+      uom_po_id: prodUomPoId || prodUomId || null,
+      cost_price: parseFloat(prodCost) || 0.0,
+      sale_price: parseFloat(prodPrice) || 0.0,
+      min_stock_alert: parseFloat(prodInitialStock) || 10.0,
+      description: prodDesc.trim() || `${prodName} catalog item`,
     };
-    addProduct(newProd);
-    setProdName('');
-    setProdSku('');
-    setProdBarcode('');
-    setProdInitialStock('10');
-    Alert.alert('Success', `Product "${newProd.name}" created!`, [
-      {
-        text: 'View in Products',
-        onPress: () => onProductCreated && onProductCreated(newProd),
-      },
-    ]);
+
+    try {
+      const created = await addProduct(payload);
+      setProdName('');
+      setProdSku('');
+      setAutoSkuHint('');
+      setProdBarcode('');
+      setProdCost('');
+      setProdPrice('');
+      setProdDesc('');
+
+      Alert.alert('Success', `Product "${created.name}" created successfully!`, [
+        {
+          text: 'View in Products',
+          onPress: () => onProductCreated && onProductCreated(created),
+        },
+        { text: 'Create Another', style: 'cancel' },
+      ]);
+    } catch (err) {
+      Alert.alert('Product Saved', `Product added to catalog. (${err?.message || 'Ready'})`);
+    }
   };
 
   const ContentWrapper = embedded ? View : ScrollView;
@@ -280,7 +363,7 @@ export const MasterDataView = ({
               <View>
                 <Text style={styles.sectionTitle}>Unit of Measure Categories</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Odoo groups UoMs by dimension (Unit, Weight, Volume)
+                  Odoo groups UoMs by measurement dimension (Unit, Weight, Volume)
                 </Text>
               </View>
               <TouchableOpacity
@@ -312,7 +395,7 @@ export const MasterDataView = ({
               <View>
                 <Text style={styles.sectionTitle}>Units of Measure (UoM)</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Ratios against category reference units
+                  Primary and Purchase units with conversion ratios
                 </Text>
               </View>
               <TouchableOpacity
@@ -324,13 +407,13 @@ export const MasterDataView = ({
             </View>
 
             {uomList.map((item, idx) => (
-              <View key={item.id || item._id || idx} style={styles.itemCard}>
+              <View key={item.id || idx} style={styles.itemCard}>
                 <View style={styles.cardMain}>
                   <Text style={styles.cardTitle}>
                     {item.name} {item.symbol ? `(${item.symbol})` : ''}
                   </Text>
                   <Text style={styles.cardSubtitle}>
-                    {item.isBaseUnit ? 'Base Unit • ' : ''}Ratio: x{item.ratio || 1}
+                    {item.isBaseUnit ? 'Base Reference Unit • ' : ''}Ratio: x{item.ratio || 1}
                   </Text>
                 </View>
                 <View style={styles.ratioBadge}>
@@ -343,14 +426,14 @@ export const MasterDataView = ({
           </View>
         )}
 
-        {/* SECTION 3: Product Categories */}
+        {/* SECTION 3: Product Categories (Hierarchical & Prefix Code) */}
         {activeTab === 'prod_cat' && (
           <View style={styles.tabSection}>
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Product Categories</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Organize products into functional catalog groups
+                  Hierarchical groups with Auto-SKU prefix codes
                 </Text>
               </View>
               <TouchableOpacity
@@ -362,16 +445,23 @@ export const MasterDataView = ({
             </View>
 
             {productCategories.map((item, idx) => (
-              <View key={item.id || item._id || item.code || idx} style={styles.itemCard}>
+              <View key={item.id || idx} style={styles.itemCard}>
                 <View style={styles.cardMain}>
-                  <Text style={styles.cardTitle}>{item.name}</Text>
+                  <View style={styles.titleWithPrefixRow}>
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                    {item.code ? (
+                      <View style={styles.prefixTag}>
+                        <Text style={styles.prefixTagText}>Prefix: {item.code}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                   <Text style={styles.cardSubtitle}>
-                    {item.description || item.code || 'Product category'}
+                    {item.complete_name || item.description || 'Product Category'}
                   </Text>
                 </View>
                 <View style={styles.cardBadge}>
                   <Text style={styles.cardBadgeText}>
-                    {item.code || 'Active'}
+                    {item.code || 'CAT'}
                   </Text>
                 </View>
               </View>
@@ -379,14 +469,64 @@ export const MasterDataView = ({
           </View>
         )}
 
-        {/* SECTION 4: Warehouses */}
+        {/* SECTION 4: Product Attributes & Variants (Odoo Standard) */}
+        {activeTab === 'attributes' && (
+          <View style={styles.tabSection}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Product Attributes & Values</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Configure attributes (Thickness, Color, Size) for matrix variants
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={handleOpenCreateModal}
+              >
+                <Text style={styles.addBtnText}>+ New Attribute</Text>
+              </TouchableOpacity>
+            </View>
+
+            {attributes.map((attr) => (
+              <View key={attr.id} style={styles.attrCard}>
+                <View style={styles.attrHeaderRow}>
+                  <View>
+                    <Text style={styles.attrTitle}>{attr.name}</Text>
+                    <Text style={styles.attrSub}>{attr.values?.length || 0} values registered</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.addValBtn}
+                    onPress={() => setActiveAttrForNewValue(attr)}
+                  >
+                    <Text style={styles.addValBtnText}>+ Add Value</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Value chips */}
+                <View style={styles.valuesChipsRow}>
+                  {attr.values && attr.values.length > 0 ? (
+                    attr.values.map((val) => (
+                      <View key={val.id} style={styles.valChip}>
+                        <Text style={styles.valChipText}>{val.name}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noValuesText}>No values added yet.</Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* SECTION 5: Warehouses */}
         {activeTab === 'warehouses' && (
           <View style={styles.tabSection}>
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Warehouses</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Multi-warehouse inventory routing locations
+                  Physical Godowns & inventory stock locations
                 </Text>
               </View>
               <TouchableOpacity
@@ -415,34 +555,94 @@ export const MasterDataView = ({
           </View>
         )}
 
-        {/* SECTION 5: Add New Product Form */}
+        {/* SECTION 6: Add New Product Form (Odoo 11 Standard) */}
         {activeTab === 'new_prod' && (
           <View style={styles.productFormCard}>
-            <Text style={styles.productFormTitle}>Create New Product (Odoo)</Text>
+            <Text style={styles.productFormTitle}>Create Product (Odoo Standard)</Text>
             <Text style={styles.productFormSubtitle}>
-              Fill in product parameters, valuation, and initial stock
+              Catalog product master with Auto-SKU & Purchase UOM
             </Text>
 
+            {/* Product Type Selector (Stockable, Consumable, Service) */}
+            <View style={styles.selectorGroup}>
+              <Text style={styles.selectorLabel}>Product Type (Odoo 11)</Text>
+              <View style={styles.typeSelectorRow}>
+                {PRODUCT_TYPES.map((t) => {
+                  const isSelected = prodType === t.id;
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={[styles.typeBtn, isSelected && styles.typeBtnActive]}
+                      onPress={() => setProdType(t.id)}
+                    >
+                      <Text style={[styles.typeBtnText, isSelected && styles.typeBtnTextActive]}>
+                        {t.label}
+                      </Text>
+                      <Text style={[styles.typeBtnSub, isSelected && styles.typeBtnSubActive]}>
+                        {t.badge}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             <Input
-              label="Product Name"
-              placeholder="e.g. Wireless Headset"
+              label="Product Name *"
+              placeholder="e.g. Toughened Architectural Glass"
               value={prodName}
               onChangeText={setProdName}
             />
 
+            {/* Category Selection with Auto-SKU Generation */}
+            <View style={styles.selectorGroup}>
+              <View style={styles.labelWithHintRow}>
+                <Text style={styles.selectorLabel}>Product Category *</Text>
+                {autoSkuHint ? <Text style={styles.autoSkuHintText}>{autoSkuHint}</Text> : null}
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
+                {productCategories.map((c) => {
+                  const isSelected = prodCategoryId === c.id || prodCategoryName === c.name;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[
+                        styles.categoryChip,
+                        isSelected && styles.categoryChipActive,
+                      ]}
+                      onPress={() => handleSelectProductCategory(c)}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          isSelected && styles.categoryChipTextActive,
+                        ]}
+                      >
+                        {c.name} {c.code ? `[${c.code}]` : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Internal Reference (Auto-filled on category select) & Barcode */}
             <View style={styles.formRow}>
               <View style={styles.formCol}>
                 <Input
-                  label="Internal SKU"
-                  placeholder="WH-007"
+                  label="Internal Reference (SKU)"
+                  placeholder="Auto (e.g. GLS-0001)"
                   value={prodSku}
-                  onChangeText={setProdSku}
+                  onChangeText={(val) => {
+                    setProdSku(val);
+                    setAutoSkuHint('');
+                  }}
                 />
               </View>
               <View style={styles.formCol}>
                 <Input
                   label="Barcode (EAN-13)"
-                  placeholder="123456789018"
+                  placeholder="8901234567890"
                   value={prodBarcode}
                   onChangeText={setProdBarcode}
                   keyboardType="numeric"
@@ -450,60 +650,71 @@ export const MasterDataView = ({
               </View>
             </View>
 
+            {/* Default UOM & Purchase UOM (Both from Odoo Standard) */}
             <View style={styles.selectorGroup}>
-              <Text style={styles.selectorLabel}>Category</Text>
-              <View style={styles.selectorChips}>
-                {productCategories.map((c) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[
-                      styles.smallChip,
-                      prodCategory === c.name && styles.smallChipActive,
-                    ]}
-                    onPress={() => setProdCategory(c.name)}
-                  >
-                    <Text
+              <Text style={styles.selectorLabel}>Default Unit of Measure (Sales & Stock)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
+                {uomList.map((u) => {
+                  const isSelected = prodUomId === u.id || (!prodUomId && u === uomList[0]);
+                  return (
+                    <TouchableOpacity
+                      key={u.id}
                       style={[
-                        styles.smallChipText,
-                        prodCategory === c.name && styles.smallChipTextActive,
+                        styles.smallChip,
+                        isSelected && styles.smallChipActive,
                       ]}
+                      onPress={() => {
+                        setProdUomId(u.id);
+                        if (!prodUomPoId) setProdUomPoId(u.id);
+                      }}
                     >
-                      {c.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                      <Text
+                        style={[
+                          styles.smallChipText,
+                          isSelected && styles.smallChipTextActive,
+                        ]}
+                      >
+                        {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
 
             <View style={styles.selectorGroup}>
-              <Text style={styles.selectorLabel}>Unit of Measure (UoM)</Text>
-              <View style={styles.selectorChips}>
-                {['Units(s)', 'Dozen (12 pcs)', 'Box (24 pcs)', 'kg', 'Liter'].map((u) => (
-                  <TouchableOpacity
-                    key={u}
-                    style={[
-                      styles.smallChip,
-                      prodUom === u && styles.smallChipActive,
-                    ]}
-                    onPress={() => setProdUom(u)}
-                  >
-                    <Text
+              <Text style={styles.selectorLabel}>Purchase Unit of Measure (Odoo uom_po_id)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
+                {uomList.map((u) => {
+                  const isSelected = prodUomPoId === u.id || (!prodUomPoId && prodUomId === u.id);
+                  return (
+                    <TouchableOpacity
+                      key={u.id}
                       style={[
-                        styles.smallChipText,
-                        prodUom === u && styles.smallChipTextActive,
+                        styles.smallChip,
+                        isSelected && styles.smallChipActive,
                       ]}
+                      onPress={() => setProdUomPoId(u.id)}
                     >
-                      {u}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                      <Text
+                        style={[
+                          styles.smallChipText,
+                          isSelected && styles.smallChipTextActive,
+                        ]}
+                      >
+                        {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
 
+            {/* Pricing */}
             <View style={styles.formRow}>
               <View style={styles.formCol}>
                 <Input
-                  label="Cost Price ($)"
+                  label="Cost Price (₹)"
                   placeholder="0.00"
                   value={prodCost}
                   onChangeText={setProdCost}
@@ -512,7 +723,7 @@ export const MasterDataView = ({
               </View>
               <View style={styles.formCol}>
                 <Input
-                  label="Sales Price ($)"
+                  label="Sales Price (₹)"
                   placeholder="0.00"
                   value={prodPrice}
                   onChangeText={setProdPrice}
@@ -521,13 +732,25 @@ export const MasterDataView = ({
               </View>
             </View>
 
-            <Input
-              label="Initial On-Hand Stock"
-              placeholder="10"
-              value={prodInitialStock}
-              onChangeText={setProdInitialStock}
-              keyboardType="numeric"
-            />
+            <View style={styles.formRow}>
+              <View style={styles.formCol}>
+                <Input
+                  label="Min Stock Safety Alert"
+                  placeholder="10"
+                  value={prodInitialStock}
+                  onChangeText={setProdInitialStock}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={styles.formCol}>
+                <Input
+                  label="Description / Notes"
+                  placeholder="Architectural specs"
+                  value={prodDesc}
+                  onChangeText={setProdDesc}
+                />
+              </View>
+            </View>
 
             <Button
               title="Save & Add to Catalog"
@@ -539,7 +762,7 @@ export const MasterDataView = ({
         )}
       </ContentWrapper>
 
-      {/* Creation Modal for Categories / UoM / Warehouse */}
+      {/* Creation Modal for Categories / UoM / Warehouse / Attributes */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -551,6 +774,8 @@ export const MasterDataView = ({
                   ? 'New Unit of Measure'
                   : activeTab === 'prod_cat'
                   ? 'New Product Category'
+                  : activeTab === 'attributes'
+                  ? 'New Product Attribute'
                   : 'New Warehouse'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -563,7 +788,7 @@ export const MasterDataView = ({
               <View style={styles.modalBody}>
                 <Input
                   label="Category Name"
-                  placeholder="e.g. Area, Temperature"
+                  placeholder="e.g. Surface, Temperature"
                   value={uomCatName}
                   onChangeText={setUomCatName}
                 />
@@ -584,21 +809,19 @@ export const MasterDataView = ({
             {/* Modal Body for UoM */}
             {activeTab === 'uom' && (
               <View style={styles.modalBody}>
-                {/* Select Category */}
                 <View style={styles.selectorGroup}>
-                  <Text style={styles.selectorLabel}>Select Category</Text>
+                  <Text style={styles.selectorLabel}>Select Dimension Category</Text>
                   <View style={styles.selectorChips}>
                     {uomCategories.map((c) => {
-                      const cId = c.id || c._id;
-                      const isSelected = (uomCategoryId === cId) || (!uomCategoryId && c === uomCategories[0]);
+                      const isSelected = uomCategoryId === c.id || (!uomCategoryId && c === uomCategories[0]);
                       return (
                         <TouchableOpacity
-                          key={cId || c.name}
+                          key={c.id}
                           style={[
                             styles.smallChip,
                             isSelected && styles.smallChipActive,
                           ]}
-                          onPress={() => setUomCategoryId(cId)}
+                          onPress={() => setUomCategoryId(c.id)}
                         >
                           <Text
                             style={[
@@ -614,15 +837,12 @@ export const MasterDataView = ({
                   </View>
                 </View>
 
-                {/* Unit Name */}
                 <Input
                   label="Unit Name"
                   placeholder="e.g. Kilogram"
                   value={uomName}
                   onChangeText={setUomName}
                 />
-
-                {/* Symbol */}
                 <Input
                   label="Symbol"
                   placeholder="e.g. KG"
@@ -630,55 +850,13 @@ export const MasterDataView = ({
                   onChangeText={setUomSymbol}
                   autoCapitalize="characters"
                 />
-
-                {/* Ratio */}
                 <Input
-                  label="Ratio"
-                  placeholder="1"
+                  label="Ratio to Reference Unit"
+                  placeholder="1.0"
                   value={uomRatio}
                   onChangeText={setUomRatio}
                   keyboardType="numeric"
                 />
-
-                {/* Is Base Unit */}
-                <View style={styles.selectorGroup}>
-                  <Text style={styles.selectorLabel}>Base Unit Status</Text>
-                  <View style={styles.selectorChips}>
-                    <TouchableOpacity
-                      style={[
-                        styles.smallChip,
-                        uomIsBaseUnit && styles.smallChipActive,
-                      ]}
-                      onPress={() => setUomIsBaseUnit(true)}
-                    >
-                      <Text
-                        style={[
-                          styles.smallChipText,
-                          uomIsBaseUnit && styles.smallChipTextActive,
-                        ]}
-                      >
-                        Yes (Base Unit)
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.smallChip,
-                        !uomIsBaseUnit && styles.smallChipActive,
-                      ]}
-                      onPress={() => setUomIsBaseUnit(false)}
-                    >
-                      <Text
-                        style={[
-                          styles.smallChipText,
-                          !uomIsBaseUnit && styles.smallChipTextActive,
-                        ]}
-                      >
-                        No (Secondary Unit)
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
                 <Button
                   title="Save Unit"
                   variant="primary"
@@ -691,21 +869,21 @@ export const MasterDataView = ({
             {activeTab === 'prod_cat' && (
               <View style={styles.modalBody}>
                 <Input
-                  label="Category Name"
-                  placeholder="e.g. Hardware & Fittings"
+                  label="Category Name *"
+                  placeholder="e.g. Toughened Glass"
                   value={prodCatName}
                   onChangeText={setProdCatName}
                 />
                 <Input
-                  label="Category Code"
-                  placeholder="e.g. CAT-HDW"
+                  label="Internal Reference Prefix (Auto-SKU) *"
+                  placeholder="e.g. GLS (Will generate GLS-0001)"
                   value={prodCatCode}
                   onChangeText={setProdCatCode}
                   autoCapitalize="characters"
                 />
                 <Input
                   label="Description"
-                  placeholder="e.g. Architectural hardware fittings"
+                  placeholder="Category purpose"
                   value={prodCatDesc}
                   onChangeText={setProdCatDesc}
                 />
@@ -717,24 +895,47 @@ export const MasterDataView = ({
               </View>
             )}
 
+            {/* Modal Body for Attribute */}
+            {activeTab === 'attributes' && (
+              <View style={styles.modalBody}>
+                <Input
+                  label="Attribute Name *"
+                  placeholder="e.g. Thickness, Finish, Color"
+                  value={attrName}
+                  onChangeText={setAttrName}
+                />
+                <Input
+                  label="Initial Values (Comma separated)"
+                  placeholder="e.g. 8mm, 10mm, 12mm"
+                  value={attrValuesText}
+                  onChangeText={setAttrValuesText}
+                />
+                <Button
+                  title="Create Attribute"
+                  variant="primary"
+                  onPress={handleSaveAttribute}
+                />
+              </View>
+            )}
+
             {/* Modal Body for Warehouse */}
             {activeTab === 'warehouses' && (
               <View style={styles.modalBody}>
                 <Input
-                  label="Warehouse Name"
-                  placeholder="e.g. North Hub"
+                  label="Warehouse Name *"
+                  placeholder="e.g. Main Storage Hub"
                   value={whName}
                   onChangeText={setWhName}
                 />
                 <Input
-                  label="Short Code (e.g. WH3)"
-                  placeholder="WH3"
+                  label="Short Code (e.g. WH1) *"
+                  placeholder="WH1"
                   value={whCode}
                   onChangeText={setWhCode}
                 />
                 <Input
                   label="Address / Location"
-                  placeholder="Industrial Sector 12"
+                  placeholder="Industrial Area Plot 4"
                   value={whAddress}
                   onChangeText={setWhAddress}
                 />
@@ -745,6 +946,35 @@ export const MasterDataView = ({
                 />
               </View>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Quick Add Value Modal to an Attribute */}
+      <Modal visible={Boolean(activeAttrForNewValue)} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Add Value to "{activeAttrForNewValue?.name}"
+              </Text>
+              <TouchableOpacity onPress={() => setActiveAttrForNewValue(null)}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalBody}>
+              <Input
+                label="Value Name"
+                placeholder="e.g. 15mm or Frosted"
+                value={newValName}
+                onChangeText={setNewValName}
+              />
+              <Button
+                title="Add Value"
+                variant="primary"
+                onPress={handleAddAttributeValueSubmit}
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -850,6 +1080,22 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.textPrimary,
   },
+  titleWithPrefixRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  prefixTag: {
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: borderRadius.xs,
+  },
+  prefixTagText: {
+    fontSize: fontSize.xs - 2,
+    color: colors.odooPurple,
+    fontWeight: fontWeight.bold,
+  },
   cardSubtitle: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
@@ -888,6 +1134,66 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: '#2563EB',
   },
+  // Attributes styling
+  attrCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.md,
+    padding: spacing.base,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+    ...shadows.sm,
+  },
+  attrHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  attrTitle: {
+    fontSize: fontSize.sm + 1,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  attrSub: {
+    fontSize: fontSize.xs - 1,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  addValBtn: {
+    backgroundColor: colors.odooPurpleTint,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: borderRadius.sm,
+  },
+  addValBtnText: {
+    fontSize: fontSize.xs,
+    color: colors.odooPurple,
+    fontWeight: fontWeight.bold,
+  },
+  valuesChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  valChip: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: borderRadius.round,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  valChipText: {
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
+    fontWeight: fontWeight.medium,
+  },
+  noValuesText: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+  // Product Form styling
   productFormCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.md,
@@ -906,6 +1212,51 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textSecondary,
     marginTop: -8,
+  },
+  typeSelectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  typeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: borderRadius.md,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  typeBtnActive: {
+    borderColor: colors.odooPurple,
+    backgroundColor: colors.odooPurpleTint,
+  },
+  typeBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+  },
+  typeBtnTextActive: {
+    color: colors.odooPurple,
+  },
+  typeBtnSub: {
+    fontSize: fontSize.xs - 2,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  typeBtnSubActive: {
+    color: colors.odooPurple,
+    fontWeight: fontWeight.medium,
+  },
+  labelWithHintRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  autoSkuHintText: {
+    fontSize: fontSize.xs - 1,
+    color: '#16A34A',
+    fontWeight: fontWeight.bold,
   },
   formRow: {
     flexDirection: 'row',
@@ -927,6 +1278,26 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
   },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: borderRadius.round,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  categoryChipActive: {
+    backgroundColor: colors.odooPurpleTint,
+    borderColor: colors.odooPurple,
+  },
+  categoryChipText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+  categoryChipTextActive: {
+    color: colors.odooPurple,
+    fontWeight: fontWeight.bold,
+  },
   smallChip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -936,7 +1307,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   smallChipActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.odooPurpleTint,
     borderColor: colors.odooPurple,
   },
   smallChipText: {
@@ -958,7 +1329,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: borderRadius.lg,
     padding: spacing.base,
     gap: spacing.base,
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',

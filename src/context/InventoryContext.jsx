@@ -57,30 +57,51 @@ const INITIAL_PRODUCT_CATEGORIES = [
   {
     id: 'pcat_1',
     name: 'Electronics',
-    parent: 'All',
-    costingMethod: 'FIFO',
-    inventoryValuation: 'Automated',
+    code: 'ELEC',
+    description: 'Computers, accessories and gadgets',
+    complete_name: 'All / Electronics',
   },
   {
     id: 'pcat_2',
     name: 'Furniture',
-    parent: 'All',
-    costingMethod: 'Average Cost (AVCO)',
-    inventoryValuation: 'Automated',
+    code: 'FURN',
+    description: 'Chairs, desks and tables',
+    complete_name: 'All / Furniture',
   },
   {
     id: 'pcat_3',
-    name: 'Accessories',
-    parent: 'All',
-    costingMethod: 'Standard Price',
-    inventoryValuation: 'Manual',
+    name: 'Hardware & Fittings',
+    code: 'HDW',
+    description: 'Hinges, handles and architectural fittings',
+    complete_name: 'All / Hardware & Fittings',
   },
   {
     id: 'pcat_4',
-    name: 'Grains & Pulses',
-    parent: 'All',
-    costingMethod: 'FIFO',
-    inventoryValuation: 'Automated',
+    name: 'Glass Products',
+    code: 'GLS',
+    description: 'Toughened and architectural glass',
+    complete_name: 'All / Glass Products',
+  },
+];
+
+const INITIAL_ATTRIBUTES = [
+  {
+    id: 'attr_1',
+    name: 'Thickness',
+    values: [
+      { id: 'val_1', name: '8mm' },
+      { id: 'val_2', name: '10mm' },
+      { id: 'val_3', name: '12mm' },
+    ],
+  },
+  {
+    id: 'attr_2',
+    name: 'Color / Finish',
+    values: [
+      { id: 'val_4', name: 'Clear' },
+      { id: 'val_5', name: 'Frosted' },
+      { id: 'val_6', name: 'Tinted Black' },
+    ],
   },
 ];
 
@@ -91,8 +112,6 @@ const INITIAL_WAREHOUSES = [
     code: 'WH1',
     address: 'Plot 42, Industrial Area, Sector 5',
     viewLocation: 'WH1/Stock',
-    inLocation: 'WH1/Input',
-    outLocation: 'WH1/Output',
   },
   {
     id: 'wh_2',
@@ -100,32 +119,20 @@ const INITIAL_WAREHOUSES = [
     code: 'WH2',
     address: 'Market Logistics Hub Gate 2',
     viewLocation: 'WH2/Stock',
-    inLocation: 'WH2/Input',
-    outLocation: 'WH2/Output',
-  },
-  {
-    id: 'wh_3',
-    name: 'WH/Stock Internal',
-    code: 'INT1',
-    address: 'Internal Depot Central Shelf',
-    viewLocation: 'WH/Stock',
-    inLocation: 'WH/Input',
-    outLocation: 'WH/Output',
   },
 ];
 
-// Odoo 11 Products from image
 const INITIAL_PRODUCTS = [
   {
     id: 'prod_1',
     name: 'Laptop Pro 15',
     sku: 'LP-001',
     barcode: '123456789012',
+    type: 'product',
+    productType: 'Stockable Product',
     category: 'Electronics',
     uom: 'Units(s)',
     purchaseUom: 'Units(s)',
-    productType: 'Storable Product',
-    warehouse: 'Main Warehouse',
     costPrice: 850.0,
     sellPrice: 1200.0,
     stock: 45.0,
@@ -135,22 +142,17 @@ const INITIAL_PRODUCTS = [
     minThreshold: 10,
     shelfLocation: 'Aisle 1 - Vault A',
     description: 'High performance laptop with 15-inch display.',
-    warehouseBreakdown: {
-      'Main Warehouse': 45.0,
-      'Secondary Warehouse': 0.0,
-      'WH/Stock': 0.0,
-    },
   },
   {
     id: 'prod_2',
     name: 'Wireless Mouse',
     sku: 'WM-002',
     barcode: '123456789013',
+    type: 'product',
+    productType: 'Stockable Product',
     category: 'Electronics',
     uom: 'Units(s)',
     purchaseUom: 'Box (24 pcs)',
-    productType: 'Storable Product',
-    warehouse: 'Main Warehouse',
     costPrice: 15.0,
     sellPrice: 25.0,
     stock: 120.0,
@@ -160,22 +162,17 @@ const INITIAL_PRODUCTS = [
     minThreshold: 20,
     shelfLocation: 'Aisle 2 - Shelf B',
     description: 'Ergonomic 2.4GHz wireless mouse with USB receiver.',
-    warehouseBreakdown: {
-      'Main Warehouse': 100.0,
-      'Secondary Warehouse': 20.0,
-      'WH/Stock': 0.0,
-    },
   },
   {
     id: 'prod_3',
     name: 'Keyboard',
     sku: 'KB-003',
     barcode: '123456789014',
+    type: 'product',
+    productType: 'Stockable Product',
     category: 'Electronics',
     uom: 'Units(s)',
     purchaseUom: 'Box (24 pcs)',
-    productType: 'Storable Product',
-    warehouse: 'Main Warehouse',
     costPrice: 35.0,
     sellPrice: 55.0,
     stock: 80.0,
@@ -185,90 +182,49 @@ const INITIAL_PRODUCTS = [
     minThreshold: 15,
     shelfLocation: 'Aisle 2 - Shelf C',
     description: 'Mechanical tactile feedback keyboard.',
-    warehouseBreakdown: {
-      'Main Warehouse': 60.0,
-      'Secondary Warehouse': 20.0,
-      'WH/Stock': 0.0,
-    },
   },
   {
     id: 'prod_4',
     name: 'HD Monitor',
     sku: 'MON-004',
     barcode: '123456789015',
+    type: 'product',
+    productType: 'Stockable Product',
     category: 'Electronics',
     uom: 'Units(s)',
     purchaseUom: 'Units(s)',
-    productType: 'Storable Product',
-    warehouse: 'Main Warehouse',
     costPrice: 120.0,
     sellPrice: 180.0,
     stock: 25.0,
     forecasted: 25.0,
     allocated: 0.0,
     available: 25.0,
-    minThreshold: 30, // Trigger low stock!
+    minThreshold: 30,
     shelfLocation: 'Aisle 3 - Bay 1',
     description: '27-inch 4K IPS display monitor.',
-    warehouseBreakdown: {
-      'Main Warehouse': 25.0,
-      'Secondary Warehouse': 0.0,
-      'WH/Stock': 0.0,
-    },
   },
   {
     id: 'prod_5',
-    name: 'Office Chair',
-    sku: 'CH-005',
-    barcode: '123456789016',
-    category: 'Furniture',
+    name: 'Standard Installation Service',
+    sku: 'SRV-0001',
+    barcode: '',
+    type: 'service',
+    productType: 'Service',
+    category: 'Hardware & Fittings',
     uom: 'Units(s)',
     purchaseUom: 'Units(s)',
-    productType: 'Storable Product',
-    warehouse: 'Main Warehouse',
-    costPrice: 90.0,
-    sellPrice: 145.0,
-    stock: 15.0,
-    forecasted: 15.0,
+    costPrice: 50.0,
+    sellPrice: 100.0,
+    stock: 0.0,
+    forecasted: 0.0,
     allocated: 0.0,
-    available: 15.0,
-    minThreshold: 5,
-    shelfLocation: 'Floor Storage Bay 4',
-    description: 'Adjustable mesh ergonomic office chair.',
-    warehouseBreakdown: {
-      'Main Warehouse': 15.0,
-      'Secondary Warehouse': 0.0,
-      'WH/Stock': 0.0,
-    },
-  },
-  {
-    id: 'prod_6',
-    name: 'USB Cable',
-    sku: 'CB-006',
-    barcode: '123456789017',
-    category: 'Accessories',
-    uom: 'Units(s)',
-    purchaseUom: 'Box (24 pcs)',
-    productType: 'Storable Product',
-    warehouse: 'Secondary Warehouse',
-    costPrice: 2.5,
-    sellPrice: 6.0,
-    stock: 200.0,
-    forecasted: 200.0,
-    allocated: 0.0,
-    available: 200.0,
-    minThreshold: 50,
-    shelfLocation: 'Aisle 4 - Bin 22',
-    description: 'Type-C high speed fast charging cable 1.5m.',
-    warehouseBreakdown: {
-      'Main Warehouse': 150.0,
-      'Secondary Warehouse': 50.0,
-      'WH/Stock': 0.0,
-    },
+    available: 0.0,
+    minThreshold: 0,
+    shelfLocation: 'N/A',
+    description: 'On-site installation and fitting service.',
   },
 ];
 
-// Odoo 11 Stock Movements ledger from image
 const INITIAL_MOVEMENTS = [
   {
     id: 'mov_1',
@@ -297,25 +253,43 @@ const INITIAL_MOVEMENTS = [
     qty: -5,
     positive: false,
   },
-  {
-    id: 'mov_4',
-    date: '07 Aug 2025',
-    type: 'Receipt',
-    reference: 'Receipt (WH/IN/00044)',
-    product: 'USB Cable',
-    qty: 20,
-    positive: true,
-  },
-  {
-    id: 'mov_5',
-    date: '02 Aug 2025',
-    type: 'Delivery',
-    reference: 'Delivery (WH/OUT/00029)',
-    product: 'Office Chair',
-    qty: -15,
-    positive: false,
-  },
 ];
+
+const normalizeProduct = (p) => {
+  const typeLabelMap = {
+    product: 'Stockable Product',
+    consu: 'Consumable',
+    service: 'Service',
+  };
+  const type = p.type || 'product';
+  const stock = Number(p.stock_on_hand ?? p.stock) || 0;
+
+  return {
+    ...p,
+    id: String(p.id || p._id || `prod_${Date.now()}`),
+    name: p.name || 'Unnamed Product',
+    sku: p.sku || 'SKU-NONE',
+    barcode: p.barcode || '',
+    type,
+    productType: p.type_label || typeLabelMap[type] || 'Stockable Product',
+    category: p.category?.name || p.category || 'General',
+    categoryId: p.category_id || p.category?.id || null,
+    uom: p.uom?.name || p.uom || 'Units(s)',
+    uomId: p.uom_id || p.uom?.id || null,
+    purchaseUom: p.purchase_uom?.name || p.purchaseUom || p.uom?.name || 'Units(s)',
+    uomPoId: p.uom_po_id || p.purchase_uom?.id || null,
+    costPrice: Number(p.cost_price ?? p.costPrice) || 0,
+    sellPrice: Number(p.sale_price ?? p.sellPrice) || 0,
+    stock,
+    forecasted: stock,
+    allocated: 0,
+    available: stock,
+    minThreshold: Number(p.min_stock_alert ?? p.minThreshold) || 10,
+    shelfLocation: p.shelfLocation || 'WH/Stock',
+    description: p.description || '',
+    variants: p.variants || [],
+  };
+};
 
 const InventoryContext = createContext(undefined);
 
@@ -324,10 +298,13 @@ export const InventoryProvider = ({ children }) => {
   const [uomCategories, setUomCategories] = useState(INITIAL_UOM_CATEGORIES);
   const [uomList, setUomList] = useState(INITIAL_UOMS);
   const [productCategories, setProductCategories] = useState(INITIAL_PRODUCT_CATEGORIES);
+  const [attributes, setAttributes] = useState(INITIAL_ATTRIBUTES);
   const [warehouses, setWarehouses] = useState(INITIAL_WAREHOUSES);
   const [products, setProducts] = useState(INITIAL_PRODUCTS);
   const [movements, setMovements] = useState(INITIAL_MOVEMENTS);
   const [isLoadingMasterData, setIsLoadingMasterData] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+
   const [inventorySummary, setInventorySummary] = useState({
     total_products: 0,
     stockable_products: 0,
@@ -340,7 +317,6 @@ export const InventoryProvider = ({ children }) => {
     total_warehouses: 0,
   });
 
-  // Counters for Odoo overview calculated dynamically from movements
   const incomingCount = movements.filter((m) => m.type === 'Receipt').length;
   const outgoingCount = movements.filter((m) => m.type === 'Delivery').length;
 
@@ -348,42 +324,78 @@ export const InventoryProvider = ({ children }) => {
   const fetchMasterData = useCallback(async () => {
     setIsLoadingMasterData(true);
     try {
-      const [uomCatsRes, uomsRes, prodCatsRes, summaryRes] = await Promise.allSettled([
-        InventoryApiService.getUomCategories(authToken),
-        InventoryApiService.getUoms(authToken),
-        InventoryApiService.getProductCategories(authToken),
-        InventoryApiService.getInventorySummary(authToken),
-      ]);
+      const [uomCatsRes, uomsRes, prodCatsRes, attrsRes, whRes, summaryRes, prodsRes] =
+        await Promise.allSettled([
+          InventoryApiService.getUomCategories(authToken),
+          InventoryApiService.getUoms(authToken),
+          InventoryApiService.getProductCategories(authToken),
+          InventoryApiService.getAttributes(authToken),
+          InventoryApiService.getWarehouses(authToken),
+          InventoryApiService.getInventorySummary(authToken),
+          InventoryApiService.getProducts({}, authToken),
+        ]);
 
-      if (uomCatsRes.status === 'fulfilled' && Array.isArray(uomCatsRes.value)) {
-        const list = uomCatsRes.value.map((c, idx) => ({
-          id: c.id || c._id || `uom_cat_${idx}`,
-          name: c.name || '',
-          description: c.description || '',
-        }));
-        setUomCategories(list);
+      if (uomCatsRes.status === 'fulfilled' && Array.isArray(uomCatsRes.value) && uomCatsRes.value.length > 0) {
+        setUomCategories(
+          uomCatsRes.value.map((c) => ({
+            id: String(c.id),
+            name: c.name,
+            description: c.description || '',
+          }))
+        );
       }
 
-      if (uomsRes.status === 'fulfilled' && Array.isArray(uomsRes.value)) {
-        const list = uomsRes.value.map((u, idx) => ({
-          id: u.id || u._id || `uom_${idx}`,
-          categoryId: u.categoryId || '',
-          name: u.name || '',
-          symbol: u.symbol || (u.name ? u.name.slice(0, 3).toUpperCase() : 'UNIT'),
-          ratio: Number(u.ratio) || 1,
-          isBaseUnit: Boolean(u.isBaseUnit),
-        }));
-        setUomList(list);
+      if (uomsRes.status === 'fulfilled' && Array.isArray(uomsRes.value) && uomsRes.value.length > 0) {
+        setUomList(
+          uomsRes.value.map((u) => ({
+            id: String(u.id),
+            categoryId: u.category_id ? String(u.category_id) : '',
+            name: u.name,
+            symbol: u.symbol || u.name.slice(0, 3).toUpperCase(),
+            ratio: Number(u.ratio) || 1.0,
+            isBaseUnit: Boolean(u.is_base_unit),
+            uom_type: u.uom_type || 'reference',
+            rounding: Number(u.rounding) || 0.01,
+          }))
+        );
       }
 
-      if (prodCatsRes.status === 'fulfilled' && Array.isArray(prodCatsRes.value)) {
-        const list = prodCatsRes.value.map((p, idx) => ({
-          id: p.id || p._id || `pcat_${idx}`,
-          name: p.name || '',
-          code: p.code || '',
-          description: p.description || '',
-        }));
-        setProductCategories(list);
+      if (prodCatsRes.status === 'fulfilled' && Array.isArray(prodCatsRes.value) && prodCatsRes.value.length > 0) {
+        setProductCategories(
+          prodCatsRes.value.map((p) => ({
+            id: String(p.id),
+            name: p.name,
+            code: p.code || '',
+            description: p.description || '',
+            parent_id: p.parent_id ? String(p.parent_id) : null,
+            complete_name: p.complete_name || p.name,
+          }))
+        );
+      }
+
+      if (attrsRes.status === 'fulfilled' && Array.isArray(attrsRes.value) && attrsRes.value.length > 0) {
+        setAttributes(
+          attrsRes.value.map((a) => ({
+            id: String(a.id),
+            name: a.name,
+            values: (a.values || []).map((v) => ({
+              id: String(v.id),
+              name: v.name,
+            })),
+          }))
+        );
+      }
+
+      if (whRes.status === 'fulfilled' && Array.isArray(whRes.value) && whRes.value.length > 0) {
+        setWarehouses(
+          whRes.value.map((w) => ({
+            id: String(w.id),
+            name: w.name,
+            code: w.code,
+            address: w.address || '',
+            viewLocation: `${w.code}/Stock`,
+          }))
+        );
       }
 
       if (summaryRes.status === 'fulfilled' && summaryRes.value) {
@@ -400,8 +412,12 @@ export const InventoryProvider = ({ children }) => {
           total_warehouses: Number(s.total_warehouses) || 0,
         });
       }
+
+      if (prodsRes.status === 'fulfilled' && Array.isArray(prodsRes.value) && prodsRes.value.length > 0) {
+        setProducts(prodsRes.value.map(normalizeProduct));
+      }
     } catch (_err) {
-      // Keep existing data if offline
+      // Keep state resilient
     } finally {
       setIsLoadingMasterData(false);
     }
@@ -411,12 +427,42 @@ export const InventoryProvider = ({ children }) => {
     fetchMasterData();
   }, [fetchMasterData]);
 
-  // UoM Category CRUD (POST /api/v1/inventory/uom-categories)
+  // Fetch products with filters
+  const fetchProducts = async (params = {}) => {
+    setIsLoadingProducts(true);
+    try {
+      const data = await InventoryApiService.getProducts(params, authToken);
+      if (Array.isArray(data)) {
+        setProducts(data.map(normalizeProduct));
+      }
+    } catch (err) {
+      console.warn('Failed to fetch products from backend:', err.message);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  // Get Next SKU for a Category
+  const getNextSku = async (categoryId) => {
+    try {
+      return await InventoryApiService.getNextSku(categoryId, authToken);
+    } catch (err) {
+      console.warn('Next SKU endpoint fallback:', err.message);
+      const cat = productCategories.find((c) => c.id === categoryId);
+      const prefix = cat?.code || 'PRD';
+      return {
+        prefix,
+        next_sku: `${prefix}-0001`,
+      };
+    }
+  };
+
+  // UoM Category CRUD
   const addUomCategory = async (newCat) => {
     try {
       const created = await InventoryApiService.createUomCategory(newCat, authToken);
       const item = {
-        id: created.id || created._id || `uom_cat_${Date.now()}`,
+        id: String(created.id || `uom_cat_${Date.now()}`),
         name: created.name || newCat.name,
         description: created.description || newCat.description,
       };
@@ -433,43 +479,49 @@ export const InventoryProvider = ({ children }) => {
     }
   };
 
-  // UoM CRUD (POST /api/v1/inventory/uom-categories)
+  // UoM CRUD
   const addUom = async (newUom) => {
     try {
       const created = await InventoryApiService.createUom(newUom, authToken);
       const item = {
-        id: created.id || created._id || `uom_${Date.now()}`,
-        categoryId: created.categoryId || newUom.categoryId,
+        id: String(created.id || `uom_${Date.now()}`),
+        categoryId: String(created.category_id || newUom.categoryId || newUom.category_id),
         name: created.name || newUom.name,
         symbol: created.symbol || newUom.symbol,
         ratio: Number(created.ratio || newUom.ratio) || 1,
-        isBaseUnit: Boolean(created.isBaseUnit ?? newUom.isBaseUnit),
+        isBaseUnit: Boolean(created.is_base_unit ?? newUom.isBaseUnit),
+        uom_type: created.uom_type || 'reference',
+        rounding: Number(created.rounding) || 0.01,
       };
       setUomList((prev) => [item, ...prev]);
       return item;
     } catch (err) {
       const localItem = {
         id: `uom_${Date.now()}`,
-        categoryId: newUom.categoryId,
+        categoryId: String(newUom.categoryId || newUom.category_id),
         name: newUom.name,
         symbol: newUom.symbol,
         ratio: Number(newUom.ratio) || 1,
         isBaseUnit: Boolean(newUom.isBaseUnit),
+        uom_type: newUom.uom_type || 'reference',
+        rounding: Number(newUom.rounding) || 0.01,
       };
       setUomList((prev) => [localItem, ...prev]);
       throw err;
     }
   };
 
-  // Product Category CRUD (POST /api/inventory/categories)
+  // Product Category CRUD
   const addProductCategory = async (newCat) => {
     try {
       const created = await InventoryApiService.createProductCategory(newCat, authToken);
       const item = {
-        id: created.id || created._id || `pcat_${Date.now()}`,
+        id: String(created.id || `pcat_${Date.now()}`),
         name: created.name || newCat.name,
         code: created.code || newCat.code,
         description: created.description || newCat.description,
+        parent_id: created.parent_id ? String(created.parent_id) : null,
+        complete_name: created.complete_name || created.name,
       };
       setProductCategories((prev) => [item, ...prev]);
       return item;
@@ -479,31 +531,148 @@ export const InventoryProvider = ({ children }) => {
         name: newCat.name,
         code: newCat.code,
         description: newCat.description,
+        parent_id: newCat.parent_id || null,
+        complete_name: newCat.name,
       };
       setProductCategories((prev) => [localItem, ...prev]);
       throw err;
     }
   };
 
+  // Attribute CRUD
+  const addAttribute = async (newAttr) => {
+    try {
+      const created = await InventoryApiService.createAttribute(newAttr, authToken);
+      const item = {
+        id: String(created.id),
+        name: created.name,
+        values: (created.values || []).map((v) => ({
+          id: String(v.id),
+          name: v.name,
+        })),
+      };
+      setAttributes((prev) => [item, ...prev]);
+      return item;
+    } catch (err) {
+      const localItem = {
+        id: `attr_${Date.now()}`,
+        name: newAttr.name,
+        values: (newAttr.values || []).map((v, i) => ({
+          id: `val_${Date.now()}_${i}`,
+          name: typeof v === 'string' ? v : v.name,
+        })),
+      };
+      setAttributes((prev) => [localItem, ...prev]);
+      throw err;
+    }
+  };
+
+  const addAttributeValue = async (attributeId, valueName) => {
+    try {
+      const created = await InventoryApiService.addAttributeValue(attributeId, valueName, authToken);
+      const valueItem = { id: String(created.id), name: created.name };
+      setAttributes((prev) =>
+        prev.map((attr) =>
+          attr.id === attributeId
+            ? { ...attr, values: [...attr.values, valueItem] }
+            : attr
+        )
+      );
+      return valueItem;
+    } catch (err) {
+      const localVal = { id: `val_${Date.now()}`, name: valueName };
+      setAttributes((prev) =>
+        prev.map((attr) =>
+          attr.id === attributeId
+            ? { ...attr, values: [...attr.values, localVal] }
+            : attr
+        )
+      );
+      throw err;
+    }
+  };
+
   // Warehouse CRUD
-  const addWarehouse = (newWh) => {
-    setWarehouses((prev) => [newWh, ...prev]);
+  const addWarehouse = async (newWh) => {
+    try {
+      const created = await InventoryApiService.createWarehouse(newWh, authToken);
+      const item = {
+        id: String(created.id),
+        name: created.name,
+        code: created.code,
+        address: created.address || '',
+        viewLocation: `${created.code}/Stock`,
+      };
+      setWarehouses((prev) => [item, ...prev]);
+      return item;
+    } catch (err) {
+      const localItem = {
+        id: `wh_${Date.now()}`,
+        name: newWh.name,
+        code: newWh.code,
+        address: newWh.address || '',
+        viewLocation: `${newWh.code}/Stock`,
+      };
+      setWarehouses((prev) => [localItem, ...prev]);
+      throw err;
+    }
   };
 
   // Product CRUD
-  const addProduct = (newProduct) => {
-    setProducts((prev) => [newProduct, ...prev]);
+  const addProduct = async (newProductData) => {
+    try {
+      const created = await InventoryApiService.createProduct(newProductData, authToken);
+      const normalized = normalizeProduct(created);
+      setProducts((prev) => [normalized, ...prev]);
+      // Update local summary
+      setInventorySummary((prev) => ({
+        ...prev,
+        total_products: prev.total_products + 1,
+        stockable_products:
+          normalized.type === 'product' ? prev.stockable_products + 1 : prev.stockable_products,
+        consumable_products:
+          normalized.type === 'consu' ? prev.consumable_products + 1 : prev.consumable_products,
+        service_products:
+          normalized.type === 'service' ? prev.service_products + 1 : prev.service_products,
+      }));
+      return normalized;
+    } catch (err) {
+      const fallback = normalizeProduct({
+        ...newProductData,
+        id: `prod_${Date.now()}`,
+      });
+      setProducts((prev) => [fallback, ...prev]);
+      throw err;
+    }
   };
 
   const updateProductStock = (productId, newStock) => {
     setProducts((prev) =>
-      prev.map((item) => (item.id === productId ? { ...item, stock: newStock } : item))
+      prev.map((item) =>
+        item.id === productId ? { ...item, stock: newStock, available: newStock } : item
+      )
     );
   };
 
-  // Odoo Operation: Receive Stock (Incoming)
+  // Variants management
+  const fetchProductVariants = async (productId) => {
+    try {
+      return await InventoryApiService.getProductVariants(productId, authToken);
+    } catch (err) {
+      console.warn('Failed to load variants:', err.message);
+      return [];
+    }
+  };
+
+  const generateVariants = async (productId, attributeIds) => {
+    const res = await InventoryApiService.generateVariants(productId, attributeIds, authToken);
+    // Refresh products list to keep variants linked
+    fetchProducts();
+    return res;
+  };
+
+  // Stock Operations (Odoo Receipts & Deliveries)
   const processReceiveStock = ({ vendor, warehouse, reference, items }) => {
-    // Increment items stock and log movement
     items.forEach((item) => {
       setProducts((prev) =>
         prev.map((p) =>
@@ -528,7 +697,6 @@ export const InventoryProvider = ({ children }) => {
     });
   };
 
-  // Odoo Operation: Deliver Stock (Outgoing)
   const processDeliverStock = ({ customer, warehouse, reference, items }) => {
     items.forEach((item) => {
       setProducts((prev) =>
@@ -554,7 +722,6 @@ export const InventoryProvider = ({ children }) => {
     });
   };
 
-  // Odoo Operation: Internal Transfer
   const processTransferStock = ({ fromWarehouse, toWarehouse, items }) => {
     items.forEach((item) => {
       setMovements((prev) => [
@@ -581,6 +748,12 @@ export const InventoryProvider = ({ children }) => {
         addUom,
         productCategories,
         addProductCategory,
+        getNextSku,
+        attributes,
+        addAttribute,
+        addAttributeValue,
+        fetchProductVariants,
+        generateVariants,
         inventorySummary,
         fetchMasterData,
         isLoadingMasterData,
@@ -588,6 +761,8 @@ export const InventoryProvider = ({ children }) => {
         addWarehouse,
         products,
         addProduct,
+        fetchProducts,
+        isLoadingProducts,
         updateProductStock,
         movements,
         incomingCount,

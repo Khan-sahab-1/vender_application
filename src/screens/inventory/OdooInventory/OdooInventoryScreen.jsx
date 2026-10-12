@@ -54,10 +54,14 @@ export const OdooInventoryScreen = () => {
         return 'Units of Measure (UoM)';
       case 'prod_cat':
         return 'Product Categories';
+      case 'attributes':
+        return 'Attributes & Variants';
       case 'warehouses':
         return 'Warehouses';
       case 'master_data':
         return 'Master Data';
+      case 'new_prod':
+        return 'Create Product';
       default:
         return 'Inventory';
     }
@@ -169,7 +173,7 @@ export const OdooInventoryScreen = () => {
               setSelectedProduct(product);
               setCurrentScreen('product_details');
             }}
-            onCreateProduct={() => setCurrentScreen('uom_cat')}
+            onCreateProduct={() => setCurrentScreen('new_prod')}
           />
         )}
 
@@ -215,7 +219,9 @@ export const OdooInventoryScreen = () => {
         {(currentScreen === 'uom_cat' ||
           currentScreen === 'uom' ||
           currentScreen === 'prod_cat' ||
+          currentScreen === 'attributes' ||
           currentScreen === 'warehouses' ||
+          currentScreen === 'new_prod' ||
           currentScreen === 'master_data') && (
           <MasterDataView
             initialTab={
