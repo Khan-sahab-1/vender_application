@@ -22,7 +22,7 @@ const TABS = [
     key: TAB_KEYS.SALE,
     label: 'Sale',
     icon: 'sale',
-    isLive: false,
+    isLive: true,
   },
   {
     key: TAB_KEYS.PURCHASE,

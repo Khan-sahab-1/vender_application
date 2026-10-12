@@ -1,6 +1,6 @@
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider, useAuth, InventoryProvider } from './src/context';
+import { AuthProvider, useAuth, InventoryProvider, SalesProvider } from './src/context';
 import { MainTabNavigator } from './src/navigation';
 import { LoginScreen } from './src/screens';
 
@@ -15,7 +15,9 @@ const App = () => {
     <SafeAreaProvider>
       <AuthProvider>
         <InventoryProvider>
-          <AppContent />
+          <SalesProvider>
+            <AppContent />
+          </SalesProvider>
         </InventoryProvider>
       </AuthProvider>
     </SafeAreaProvider>

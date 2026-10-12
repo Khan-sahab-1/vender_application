@@ -5,19 +5,20 @@ import { colors } from '../constants/colors';
 import { TenantHeader } from '../components/navigation/TenantHeader';
 import { BottomTabBar, TAB_KEYS } from '../components/navigation/BottomTabBar';
 import { InventoryScreen } from '../screens/inventory';
+import { SaleScreen } from '../screens/sales';
 import { ComingSoonScreen } from '../screens/common/ComingSoonScreen';
 
 export const MainTabNavigator = () => {
   const [activeTab, setActiveTab] = useState(TAB_KEYS.INVENTORY);
 
-  const isInventory = activeTab === TAB_KEYS.INVENTORY;
+  const isCustomHeader = activeTab === TAB_KEYS.INVENTORY || activeTab === TAB_KEYS.SALE;
 
   const renderCurrentScreen = () => {
     switch (activeTab) {
       case TAB_KEYS.INVENTORY:
         return <InventoryScreen />;
       case TAB_KEYS.SALE:
-        return <ComingSoonScreen moduleKey="sale" />;
+        return <SaleScreen />;
       case TAB_KEYS.PURCHASE:
         return <ComingSoonScreen moduleKey="purchase" />;
       case TAB_KEYS.ACCOUNTING:
@@ -29,16 +30,16 @@ export const MainTabNavigator = () => {
 
   return (
     <SafeAreaView
-      style={[styles.safeContainer, isInventory && styles.safeContainerOdoo]}
+      style={[styles.safeContainer, isCustomHeader && styles.safeContainerOdoo]}
       edges={['top', 'left', 'right']}
     >
       <StatusBar
-        barStyle={isInventory ? 'light-content' : 'dark-content'}
-        backgroundColor={isInventory ? colors.odooPurple : '#FFFFFF'}
+        barStyle={isCustomHeader ? 'light-content' : 'dark-content'}
+        backgroundColor={isCustomHeader ? colors.odooPurple : '#FFFFFF'}
       />
 
-      {/* Multi-Tenant Top Header for non-inventory tabs */}
-      {!isInventory && <TenantHeader />}
+      {/* Multi-Tenant Top Header for tabs that do not have their own header */}
+      {!isCustomHeader && <TenantHeader />}
 
       {/* Current Screen Content */}
       <View style={styles.contentContainer}>{renderCurrentScreen()}</View>

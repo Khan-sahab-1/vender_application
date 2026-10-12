@@ -30,6 +30,11 @@ export const API_ENDPOINTS = {
   VARIANTS: (productId) => `/api/v1/inventory/products/${productId}/variants`,
   GENERATE_VARIANTS: (productId) => `/api/v1/inventory/products/${productId}/generate-variants`,
   WAREHOUSES: '/api/v1/inventory/warehouses',
+  // Sales Orders (Vendor Portal mirrored from Odoo POs)
+  SALES_SUMMARY: '/api/v1/sales/summary',
+  SALES_ORDERS: '/api/v1/sales/orders',
+  SALES_ORDER_DETAIL: (poId) => `/api/v1/sales/orders/${poId}`,
+  ACKNOWLEDGE_ORDER: (poId) => `/api/v1/sales/orders/${poId}/acknowledge`,
 };
 
 const getHeaders = (token) => {
@@ -420,3 +425,61 @@ export const InventoryApiService = {
     });
   },
 };
+
+export const SalesApiService = {
+  /**
+   * GET /api/v1/sales/orders
+   */
+  async getSalesOrders(params = {}, token) {
+    const q = [];
+    if (params.search) q.push(`search=${encodeURIComponent(params.search)}`);
+    if (params.status) q.push(`status=${encodeURIComponent(params.status)}`);
+    if (params.limit) q.push(`limit=${encodeURIComponent(params.limit)}`);
+    const qs = q.length > 0 ? `?${q.join('&')}` : '';
+
+    const url = `${API_BASE_URL}${API_ENDPOINTS.SALES_ORDERS}${qs}`;
+    const data = await request(url, {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    return Array.isArray(data) ? data : data?.data || [];
+  },
+
+  /**
+   * GET /api/v1/sales/orders/:poId
+   */
+  async getSalesOrderDetail(poId, token) {
+    const url = `${API_BASE_URL}${API_ENDPOINTS.SALES_ORDER_DETAIL(poId)}`;
+    const data = await request(url, {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    return data?.data || data;
+  },
+
+  /**
+   * POST /api/v1/sales/orders/:poId/acknowledge
+   */
+  async acknowledgeSalesOrder(poId, notes = '', token) {
+    const url = `${API_BASE_URL}${API_ENDPOINTS.ACKNOWLEDGE_ORDER(poId)}`;
+    const data = await request(url, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ notes }),
+    });
+    return data?.data || data;
+  },
+
+  /**
+   * GET /api/v1/sales/summary
+   */
+  async getSalesSummary(token) {
+    const url = `${API_BASE_URL}${API_ENDPOINTS.SALES_SUMMARY}`;
+    const data = await request(url, {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    return data?.data || data;
+  },
+};
+
