@@ -19,6 +19,7 @@ import { Icon } from '../../components/common/Icon';
 import { Button } from '../../components/common/Button';
 import { useSales } from '../../context/SalesContext';
 import { useAuth } from '../../context/AuthContext';
+import { SalesApiService } from '../../services';
 
 const STATUS_CHIPS = [
   { id: 'all', label: 'All Orders' },
@@ -29,7 +30,7 @@ const STATUS_CHIPS = [
 ];
 
 export const SaleScreen = () => {
-  const { currentTenant } = useAuth();
+  const { currentTenant, authToken } = useAuth();
   const {
     orders,
     summary,
@@ -45,6 +46,7 @@ export const SaleScreen = () => {
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [ackModalVisible, setAckModalVisible] = useState(false);
   const [orderToAck, setOrderToAck] = useState(null);
   const [ackNotes, setAckNotes] = useState('');
@@ -78,9 +80,24 @@ export const SaleScreen = () => {
     });
   }, [orders, filterStatus, searchQuery]);
 
-  const handleOpenDetail = (order) => {
+  const handleOpenDetail = async (order) => {
     setSelectedOrder(order);
     setDetailModalVisible(true);
+
+    // If order has fewer lines than item_count, fetch full line details from API
+    if (order?.odoo_po_id && (!order.lines || order.lines.length < (order.item_count || 1))) {
+      setIsLoadingDetail(true);
+      try {
+        const full = await SalesApiService.getSalesOrderDetail(order.odoo_po_id, authToken);
+        if (full) {
+          setSelectedOrder(full);
+        }
+      } catch (e) {
+        console.warn('Failed to fetch full order details:', e);
+      } finally {
+        setIsLoadingDetail(false);
+      }
+    }
   };
 
   const handleOpenAckModal = (order) => {
@@ -310,7 +327,12 @@ export const SaleScreen = () => {
           filteredOrders.map((order) => {
             const stColor = getStatusColor(order.state);
             return (
-              <View key={order.id} style={styles.orderCard}>
+              <TouchableOpacity
+                key={order.id}
+                style={styles.orderCard}
+                activeOpacity={0.85}
+                onPress={() => handleOpenDetail(order)}
+              >
                 {/* Header: SO Number, PO Ref, State */}
                 <View style={styles.cardHeader}>
                   <View style={styles.cardHeaderLeft}>
@@ -391,7 +413,10 @@ export const SaleScreen = () => {
                   ) : (
                     <TouchableOpacity
                       style={styles.ackActionBtn}
-                      onPress={() => handleOpenAckModal(order)}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        handleOpenAckModal(order);
+                      }}
                       activeOpacity={0.8}
                     >
                       <Icon name="check" size={14} color="#FFFFFF" />
@@ -408,7 +433,7 @@ export const SaleScreen = () => {
                     <Icon name="arrow-right" size={12} color={colors.odooPurple} />
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })
         )}
@@ -498,6 +523,13 @@ export const SaleScreen = () => {
                 <Text style={styles.detailCardTitle}>
                   Ordered Line Items ({selectedOrder.lines?.length || 0})
                 </Text>
+
+                {isLoadingDetail && (
+                  <View style={{ paddingVertical: 8, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
+                    <ActivityIndicator size="small" color={colors.odooPurple} />
+                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>Fetching line items from Odoo...</Text>
+                  </View>
+                )}
 
                 {selectedOrder.lines && selectedOrder.lines.length > 0 ? (
                   selectedOrder.lines.map((line, idx) => (

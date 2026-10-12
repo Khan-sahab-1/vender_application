@@ -43,8 +43,8 @@ export const SalesProvider = ({ children }) => {
     setIsLoading(true);
     try {
       const queryParams = {
-        search: params.search ?? searchQuery,
-        status: (params.status ?? filterStatus) === 'all' ? undefined : (params.status ?? filterStatus),
+        search: params.search ?? (searchQuery || undefined),
+        limit: 150,
       };
 
       const [ordersRes, summaryRes] = await Promise.allSettled([
@@ -54,8 +54,8 @@ export const SalesProvider = ({ children }) => {
 
       if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
         setOrders(ordersRes.value);
-      } else {
-        setOrders([]);
+      } else if (ordersRes.status === 'rejected') {
+        console.warn('[SalesContext] Failed to fetch orders:', ordersRes.reason?.message || ordersRes.reason);
       }
 
       if (summaryRes.status === 'fulfilled' && summaryRes.value) {
@@ -72,7 +72,7 @@ export const SalesProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [authToken, filterStatus, searchQuery, resetSalesData]);
+  }, [authToken, searchQuery, resetSalesData]);
 
   const refreshOrders = useCallback(async () => {
     if (!authToken) return;
