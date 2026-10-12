@@ -50,6 +50,10 @@ export const ReceiveStockView = ({ onComplete }) => {
   };
 
   const handleValidate = () => {
+    if (receiveItems.length === 0) {
+      Alert.alert('No Items', 'No items to receive. Please create products first.');
+      return;
+    }
     processReceiveStock({
       vendor,
       warehouse,
@@ -101,36 +105,44 @@ export const ReceiveStockView = ({ onComplete }) => {
       {/* Products Receiving List */}
       <Text style={styles.sectionTitle}>Products to Receive</Text>
       <View style={styles.itemsCard}>
-        {receiveItems.map((item) => (
-          <View key={item.sku} style={styles.itemRow}>
-            <View style={styles.itemIcon}>
-              <Icon name="box" size={18} color={colors.odooPurple} />
-            </View>
-
-            <View style={styles.itemDetails}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemSku}>{item.sku}</Text>
-            </View>
-
-            {/* Quantity Stepper */}
-            <View style={styles.stepperContainer}>
-              <TouchableOpacity
-                style={styles.stepBtn}
-                onPress={() => handleQtyChange(item.sku, -1)}
-              >
-                <Icon name="minus" size={12} color={colors.textPrimary} />
-              </TouchableOpacity>
-              <Text style={styles.qtyText}>{item.qty}</Text>
-              <TouchableOpacity
-                style={styles.stepBtn}
-                onPress={() => handleQtyChange(item.sku, 1)}
-              >
-                <Icon name="plus" size={12} color={colors.textPrimary} />
-              </TouchableOpacity>
-              <Text style={styles.uomText}>{item.uom}</Text>
-            </View>
+        {receiveItems.length === 0 ? (
+          <View style={{ paddingVertical: 18, alignItems: 'center' }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+              No products found in this company to receive.
+            </Text>
           </View>
-        ))}
+        ) : (
+          receiveItems.map((item) => (
+            <View key={item.sku} style={styles.itemRow}>
+              <View style={styles.itemIcon}>
+                <Icon name="box" size={18} color={colors.odooPurple} />
+              </View>
+
+              <View style={styles.itemDetails}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemSku}>{item.sku}</Text>
+              </View>
+
+              {/* Quantity Stepper */}
+              <View style={styles.stepperContainer}>
+                <TouchableOpacity
+                  style={styles.stepBtn}
+                  onPress={() => handleQtyChange(item.sku, -1)}
+                >
+                  <Icon name="minus" size={12} color={colors.textPrimary} />
+                </TouchableOpacity>
+                <Text style={styles.qtyText}>{item.qty}</Text>
+                <TouchableOpacity
+                  style={styles.stepBtn}
+                  onPress={() => handleQtyChange(item.sku, 1)}
+                >
+                  <Icon name="plus" size={12} color={colors.textPrimary} />
+                </TouchableOpacity>
+                <Text style={styles.uomText}>{item.uom}</Text>
+              </View>
+            </View>
+          ))
+        )}
 
         <TouchableOpacity
           style={styles.addMoreRow}

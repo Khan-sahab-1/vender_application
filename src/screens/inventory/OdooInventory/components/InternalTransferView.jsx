@@ -19,29 +19,22 @@ export const InternalTransferView = ({ onComplete }) => {
   const { products, warehouses, processTransferStock } = useInventory();
 
   const [fromWarehouse, setFromWarehouse] = useState(
-    warehouses[0]?.name || 'Main Warehouse'
+    warehouses[0]?.name || ''
   );
   const [toWarehouse, setToWarehouse] = useState(
-    warehouses[1]?.name || 'Secondary Warehouse'
+    warehouses[1]?.name || warehouses[0]?.name || ''
   );
 
-  // Transfer items
-  const [transferItems, setTransferItems] = useState([
-    {
-      id: products[0]?.id || '1',
-      name: products[0]?.name || 'Laptop Pro 15',
-      sku: products[0]?.sku || 'LP-001',
-      qty: 2,
-      uom: 'Pcs',
-    },
-    {
-      id: products[1]?.id || '2',
-      name: products[1]?.name || 'Wireless Mouse',
-      sku: products[1]?.sku || 'WM-002',
-      qty: 5,
-      uom: 'Pcs',
-    },
-  ]);
+  // Transfer items strictly derived from this tenant's real products
+  const [transferItems, setTransferItems] = useState(
+    products.slice(0, 2).map((p) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      qty: 1,
+      uom: p.uom || 'Units',
+    }))
+  );
 
   const handleQtyChange = (sku, delta) => {
     setTransferItems((prev) =>
@@ -58,6 +51,14 @@ export const InternalTransferView = ({ onComplete }) => {
   };
 
   const handleValidateTransfer = () => {
+    if (transferItems.length === 0) {
+      Alert.alert('No Items', 'There are no items to transfer. Please create products first.');
+      return;
+    }
+    if (!fromWarehouse || !toWarehouse) {
+      Alert.alert('Select Warehouse', 'Please select source and destination warehouses.');
+      return;
+    }
     if (fromWarehouse === toWarehouse) {
       Alert.alert(
         'Invalid Transfer',
@@ -160,39 +161,47 @@ export const InternalTransferView = ({ onComplete }) => {
           <Text style={styles.cardTitle}>Items to Move ({transferItems.length})</Text>
         </View>
 
-        {transferItems.map((item, idx) => (
-          <View
-            key={item.sku}
-            style={[
-              styles.itemRow,
-              idx === transferItems.length - 1 && styles.itemRowLast,
-            ]}
-          >
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemSku}>SKU: {item.sku} • {item.uom}</Text>
-            </View>
-
-            {/* Stepper */}
-            <View style={styles.stepperContainer}>
-              <TouchableOpacity
-                style={styles.stepperBtn}
-                onPress={() => handleQtyChange(item.sku, -1)}
-              >
-                <Text style={styles.stepperBtnText}>-</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.stepperValue}>{item.qty}</Text>
-
-              <TouchableOpacity
-                style={styles.stepperBtn}
-                onPress={() => handleQtyChange(item.sku, 1)}
-              >
-                <Text style={styles.stepperBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
+        {transferItems.length === 0 ? (
+          <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+              No products found in this company to transfer.
+            </Text>
           </View>
-        ))}
+        ) : (
+          transferItems.map((item, idx) => (
+            <View
+              key={item.sku}
+              style={[
+                styles.itemRow,
+                idx === transferItems.length - 1 && styles.itemRowLast,
+              ]}
+            >
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemSku}>SKU: {item.sku} • {item.uom}</Text>
+              </View>
+
+              {/* Stepper */}
+              <View style={styles.stepperContainer}>
+                <TouchableOpacity
+                  style={styles.stepperBtn}
+                  onPress={() => handleQtyChange(item.sku, -1)}
+                >
+                  <Text style={styles.stepperBtnText}>-</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.stepperValue}>{item.qty}</Text>
+
+                <TouchableOpacity
+                  style={styles.stepperBtn}
+                  onPress={() => handleQtyChange(item.sku, 1)}
+                >
+                  <Text style={styles.stepperBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
       </View>
 
       {/* Summary Note Card */}

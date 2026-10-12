@@ -97,15 +97,37 @@ export const MasterDataView = ({
   const [prodSku, setProdSku] = useState('');
   const [prodBarcode, setProdBarcode] = useState('');
   const [prodType, setProdType] = useState('product'); // 'product', 'consu', 'service'
-  const [prodCategoryId, setProdCategoryId] = useState(productCategories[0]?.id || '');
-  const [prodCategoryName, setProdCategoryName] = useState(productCategories[0]?.name || 'Electronics');
-  const [prodUomId, setProdUomId] = useState(uomList[0]?.id || '');
-  const [prodUomPoId, setProdUomPoId] = useState(uomList[0]?.id || '');
+  const [prodCategoryId, setProdCategoryId] = useState('');
+  const [prodCategoryName, setProdCategoryName] = useState('');
+  const [prodUomId, setProdUomId] = useState('');
+  const [prodUomPoId, setProdUomPoId] = useState('');
   const [prodCost, setProdCost] = useState('');
   const [prodPrice, setProdPrice] = useState('');
   const [prodInitialStock, setProdInitialStock] = useState('10');
   const [prodDesc, setProdDesc] = useState('');
   const [autoSkuHint, setAutoSkuHint] = useState('');
+
+  // Dynamically select first tenant category when categories load
+  useEffect(() => {
+    if (!prodCategoryId && productCategories.length > 0) {
+      setProdCategoryId(productCategories[0].id);
+      setProdCategoryName(productCategories[0].name);
+    }
+  }, [productCategories, prodCategoryId]);
+
+  // Dynamically select first tenant UOM when UOMs load
+  useEffect(() => {
+    if (!prodUomId && uomList.length > 0) {
+      setProdUomId(uomList[0].id);
+      setProdUomPoId(uomList[0].id);
+    }
+  }, [uomList, prodUomId]);
+
+  useEffect(() => {
+    if (!uomCategoryId && uomCategories.length > 0) {
+      setUomCategoryId(uomCategories[0].id);
+    }
+  }, [uomCategories, uomCategoryId]);
 
   // Auto-fetch Next SKU whenever category is changed in Product Creation
   const handleSelectProductCategory = async (cat) => {
@@ -374,17 +396,23 @@ export const MasterDataView = ({
               </TouchableOpacity>
             </View>
 
-            {uomCategories.map((item) => (
-              <View key={item.id} style={styles.itemCard}>
-                <View style={styles.cardMain}>
-                  <Text style={styles.cardTitle}>{item.name}</Text>
-                  <Text style={styles.cardSubtitle}>{item.description}</Text>
-                </View>
-                <View style={styles.cardBadge}>
-                  <Text style={styles.cardBadgeText}>Odoo 11</Text>
-                </View>
+            {uomCategories.length === 0 ? (
+              <View style={styles.emptyMasterCard}>
+                <Text style={styles.emptyMasterText}>No UoM Categories found for this company.</Text>
               </View>
-            ))}
+            ) : (
+              uomCategories.map((item) => (
+                <View key={item.id} style={styles.itemCard}>
+                  <View style={styles.cardMain}>
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                    <Text style={styles.cardSubtitle}>{item.description}</Text>
+                  </View>
+                  <View style={styles.cardBadge}>
+                    <Text style={styles.cardBadgeText}>Odoo 11</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -406,23 +434,29 @@ export const MasterDataView = ({
               </TouchableOpacity>
             </View>
 
-            {uomList.map((item, idx) => (
-              <View key={item.id || idx} style={styles.itemCard}>
-                <View style={styles.cardMain}>
-                  <Text style={styles.cardTitle}>
-                    {item.name} {item.symbol ? `(${item.symbol})` : ''}
-                  </Text>
-                  <Text style={styles.cardSubtitle}>
-                    {item.isBaseUnit ? 'Base Reference Unit • ' : ''}Ratio: x{item.ratio || 1}
-                  </Text>
-                </View>
-                <View style={styles.ratioBadge}>
-                  <Text style={styles.ratioBadgeText}>
-                    {item.symbol || `x${item.ratio || 1}`}
-                  </Text>
-                </View>
+            {uomList.length === 0 ? (
+              <View style={styles.emptyMasterCard}>
+                <Text style={styles.emptyMasterText}>No Units of Measure found for this company.</Text>
               </View>
-            ))}
+            ) : (
+              uomList.map((item, idx) => (
+                <View key={item.id || idx} style={styles.itemCard}>
+                  <View style={styles.cardMain}>
+                    <Text style={styles.cardTitle}>
+                      {item.name} {item.symbol ? `(${item.symbol})` : ''}
+                    </Text>
+                    <Text style={styles.cardSubtitle}>
+                      {item.isBaseUnit ? 'Base Reference Unit • ' : ''}Ratio: x{item.ratio || 1}
+                    </Text>
+                  </View>
+                  <View style={styles.ratioBadge}>
+                    <Text style={styles.ratioBadgeText}>
+                      {item.symbol || `x${item.ratio || 1}`}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -444,28 +478,34 @@ export const MasterDataView = ({
               </TouchableOpacity>
             </View>
 
-            {productCategories.map((item, idx) => (
-              <View key={item.id || idx} style={styles.itemCard}>
-                <View style={styles.cardMain}>
-                  <View style={styles.titleWithPrefixRow}>
-                    <Text style={styles.cardTitle}>{item.name}</Text>
-                    {item.code ? (
-                      <View style={styles.prefixTag}>
-                        <Text style={styles.prefixTagText}>Prefix: {item.code}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <Text style={styles.cardSubtitle}>
-                    {item.complete_name || item.description || 'Product Category'}
-                  </Text>
-                </View>
-                <View style={styles.cardBadge}>
-                  <Text style={styles.cardBadgeText}>
-                    {item.code || 'CAT'}
-                  </Text>
-                </View>
+            {productCategories.length === 0 ? (
+              <View style={styles.emptyMasterCard}>
+                <Text style={styles.emptyMasterText}>No Product Categories found for this company.</Text>
               </View>
-            ))}
+            ) : (
+              productCategories.map((item, idx) => (
+                <View key={item.id || idx} style={styles.itemCard}>
+                  <View style={styles.cardMain}>
+                    <View style={styles.titleWithPrefixRow}>
+                      <Text style={styles.cardTitle}>{item.name}</Text>
+                      {item.code ? (
+                        <View style={styles.prefixTag}>
+                          <Text style={styles.prefixTagText}>Prefix: {item.code}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.cardSubtitle}>
+                      {item.complete_name || item.description || 'Product Category'}
+                    </Text>
+                  </View>
+                  <View style={styles.cardBadge}>
+                    <Text style={styles.cardBadgeText}>
+                      {item.code || 'CAT'}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -487,35 +527,41 @@ export const MasterDataView = ({
               </TouchableOpacity>
             </View>
 
-            {attributes.map((attr) => (
-              <View key={attr.id} style={styles.attrCard}>
-                <View style={styles.attrHeaderRow}>
-                  <View>
-                    <Text style={styles.attrTitle}>{attr.name}</Text>
-                    <Text style={styles.attrSub}>{attr.values?.length || 0} values registered</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.addValBtn}
-                    onPress={() => setActiveAttrForNewValue(attr)}
-                  >
-                    <Text style={styles.addValBtnText}>+ Add Value</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Value chips */}
-                <View style={styles.valuesChipsRow}>
-                  {attr.values && attr.values.length > 0 ? (
-                    attr.values.map((val) => (
-                      <View key={val.id} style={styles.valChip}>
-                        <Text style={styles.valChipText}>{val.name}</Text>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={styles.noValuesText}>No values added yet.</Text>
-                  )}
-                </View>
+            {attributes.length === 0 ? (
+              <View style={styles.emptyMasterCard}>
+                <Text style={styles.emptyMasterText}>No Product Attributes found for this company. Tap "+ New Attribute" to add.</Text>
               </View>
-            ))}
+            ) : (
+              attributes.map((attr) => (
+                <View key={attr.id} style={styles.attrCard}>
+                  <View style={styles.attrHeaderRow}>
+                    <View>
+                      <Text style={styles.attrTitle}>{attr.name}</Text>
+                      <Text style={styles.attrSub}>{attr.values?.length || 0} values registered</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.addValBtn}
+                      onPress={() => setActiveAttrForNewValue(attr)}
+                    >
+                      <Text style={styles.addValBtnText}>+ Add Value</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Value chips */}
+                  <View style={styles.valuesChipsRow}>
+                    {attr.values && attr.values.length > 0 ? (
+                      attr.values.map((val) => (
+                        <View key={val.id} style={styles.valChip}>
+                          <Text style={styles.valChipText}>{val.name}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.noValuesText}>No values added yet.</Text>
+                    )}
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -537,21 +583,27 @@ export const MasterDataView = ({
               </TouchableOpacity>
             </View>
 
-            {warehouses.map((item) => (
-              <View key={item.id} style={styles.itemCard}>
-                <View style={styles.cardMain}>
-                  <Text style={styles.cardTitle}>
-                    [{item.code}] {item.name}
-                  </Text>
-                  <Text style={styles.cardSubtitle}>
-                    Location: {item.viewLocation} • {item.address}
-                  </Text>
-                </View>
-                <View style={styles.whCodeBadge}>
-                  <Text style={styles.whCodeBadgeText}>{item.code}</Text>
-                </View>
+            {warehouses.length === 0 ? (
+              <View style={styles.emptyMasterCard}>
+                <Text style={styles.emptyMasterText}>No Warehouses found for this company. Tap "+ Add Warehouse" to add.</Text>
               </View>
-            ))}
+            ) : (
+              warehouses.map((item) => (
+                <View key={item.id} style={styles.itemCard}>
+                  <View style={styles.cardMain}>
+                    <Text style={styles.cardTitle}>
+                      [{item.code}] {item.name}
+                    </Text>
+                    <Text style={styles.cardSubtitle}>
+                      Location: {item.viewLocation} • {item.address}
+                    </Text>
+                  </View>
+                  <View style={styles.whCodeBadge}>
+                    <Text style={styles.whCodeBadgeText}>{item.code}</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -600,30 +652,34 @@ export const MasterDataView = ({
                 <Text style={styles.selectorLabel}>Product Category *</Text>
                 {autoSkuHint ? <Text style={styles.autoSkuHintText}>{autoSkuHint}</Text> : null}
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
-                {productCategories.map((c) => {
-                  const isSelected = prodCategoryId === c.id || prodCategoryName === c.name;
-                  return (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[
-                        styles.categoryChip,
-                        isSelected && styles.categoryChipActive,
-                      ]}
-                      onPress={() => handleSelectProductCategory(c)}
-                    >
-                      <Text
+              {productCategories.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
+                  {productCategories.map((c) => {
+                    const isSelected = prodCategoryId === c.id || prodCategoryName === c.name;
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
                         style={[
-                          styles.categoryChipText,
-                          isSelected && styles.categoryChipTextActive,
+                          styles.categoryChip,
+                          isSelected && styles.categoryChipActive,
                         ]}
+                        onPress={() => handleSelectProductCategory(c)}
                       >
-                        {c.name} {c.code ? `[${c.code}]` : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                        <Text
+                          style={[
+                            styles.categoryChipText,
+                            isSelected && styles.categoryChipTextActive,
+                          ]}
+                        >
+                          {c.name} {c.code ? `[${c.code}]` : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              ) : (
+                <Text style={styles.noValuesText}>No categories found for this company yet. Go to "Product Categories" tab to add one.</Text>
+              )}
             </View>
 
             {/* Internal Reference (Auto-filled on category select) & Barcode */}
@@ -653,61 +709,69 @@ export const MasterDataView = ({
             {/* Default UOM & Purchase UOM (Both from Odoo Standard) */}
             <View style={styles.selectorGroup}>
               <Text style={styles.selectorLabel}>Default Unit of Measure (Sales & Stock)</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
-                {uomList.map((u) => {
-                  const isSelected = prodUomId === u.id || (!prodUomId && u === uomList[0]);
-                  return (
-                    <TouchableOpacity
-                      key={u.id}
-                      style={[
-                        styles.smallChip,
-                        isSelected && styles.smallChipActive,
-                      ]}
-                      onPress={() => {
-                        setProdUomId(u.id);
-                        if (!prodUomPoId) setProdUomPoId(u.id);
-                      }}
-                    >
-                      <Text
+              {uomList.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
+                  {uomList.map((u) => {
+                    const isSelected = prodUomId === u.id || (!prodUomId && u === uomList[0]);
+                    return (
+                      <TouchableOpacity
+                        key={u.id}
                         style={[
-                          styles.smallChipText,
-                          isSelected && styles.smallChipTextActive,
+                          styles.smallChip,
+                          isSelected && styles.smallChipActive,
                         ]}
+                        onPress={() => {
+                          setProdUomId(u.id);
+                          if (!prodUomPoId) setProdUomPoId(u.id);
+                        }}
                       >
-                        {u.name} {u.symbol ? `(${u.symbol})` : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                        <Text
+                          style={[
+                            styles.smallChipText,
+                            isSelected && styles.smallChipTextActive,
+                          ]}
+                        >
+                          {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              ) : (
+                <Text style={styles.noValuesText}>No Units of Measure found for this company.</Text>
+              )}
             </View>
 
             <View style={styles.selectorGroup}>
               <Text style={styles.selectorLabel}>Purchase Unit of Measure (Odoo uom_po_id)</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
-                {uomList.map((u) => {
-                  const isSelected = prodUomPoId === u.id || (!prodUomPoId && prodUomId === u.id);
-                  return (
-                    <TouchableOpacity
-                      key={u.id}
-                      style={[
-                        styles.smallChip,
-                        isSelected && styles.smallChipActive,
-                      ]}
-                      onPress={() => setProdUomPoId(u.id)}
-                    >
-                      <Text
+              {uomList.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorChips}>
+                  {uomList.map((u) => {
+                    const isSelected = prodUomPoId === u.id || (!prodUomPoId && prodUomId === u.id);
+                    return (
+                      <TouchableOpacity
+                        key={u.id}
                         style={[
-                          styles.smallChipText,
-                          isSelected && styles.smallChipTextActive,
+                          styles.smallChip,
+                          isSelected && styles.smallChipActive,
                         ]}
+                        onPress={() => setProdUomPoId(u.id)}
                       >
-                        {u.name} {u.symbol ? `(${u.symbol})` : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                        <Text
+                          style={[
+                            styles.smallChipText,
+                            isSelected && styles.smallChipTextActive,
+                          ]}
+                        >
+                          {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              ) : (
+                <Text style={styles.noValuesText}>No Units of Measure found for this company.</Text>
+              )}
             </View>
 
             {/* Pricing */}
@@ -1352,5 +1416,19 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     gap: spacing.base,
+  },
+  emptyMasterCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.md,
+    padding: spacing.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
+  },
+  emptyMasterText: {
+    fontSize: fontSize.xs + 1,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
