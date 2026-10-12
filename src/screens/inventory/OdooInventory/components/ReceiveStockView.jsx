@@ -19,8 +19,8 @@ import { useInventory } from '../../../../context/InventoryContext';
 export const ReceiveStockView = ({ onComplete }) => {
   const { products, warehouses, processReceiveStock } = useInventory();
 
-  const [vendor, setVendor] = useState('ABC Suppliers');
-  const [warehouse, setWarehouse] = useState(warehouses[0]?.name || 'Main Warehouse');
+  const [vendor, setVendor] = useState('');
+  const [warehouse, setWarehouse] = useState(warehouses[0]?.name || '');
   const [reference, setReference] = useState(`PO-${new Date().getFullYear()}-001`);
   const [date, setDate] = useState(
     new Date().toLocaleDateString('en-GB', {
@@ -83,7 +83,7 @@ export const ReceiveStockView = ({ onComplete }) => {
           label="Destination Warehouse"
           value={warehouse}
           onChangeText={setWarehouse}
-          placeholder="Main Warehouse"
+          placeholder="e.g. WH-01 or Select Warehouse"
         />
 
         <View style={styles.rowTwo}>

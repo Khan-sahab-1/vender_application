@@ -176,6 +176,10 @@ export const MasterDataView = ({
       return;
     }
     const targetCatId = uomCategoryId || uomCategories[0]?.id;
+    if (!targetCatId) {
+      Alert.alert('Category Required', 'Please create at least one UoM Category first before adding a Unit of Measure.');
+      return;
+    }
 
     try {
       await addUom({

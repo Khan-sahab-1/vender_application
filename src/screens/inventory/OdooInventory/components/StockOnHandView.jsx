@@ -15,11 +15,11 @@ import { Button } from '../../../../components/common/Button';
 export const StockOnHandView = ({ product, onAdjustStock }) => {
   if (!product) return null;
 
-  const breakdown = product.warehouseBreakdown || {
-    'Main Warehouse': product.stock,
-    'Secondary Warehouse': 0.0,
-    'WH/Stock': 0.0,
-  };
+  const breakdown = product.warehouseBreakdown || (product.warehouse ? {
+    [product.warehouse]: product.stock,
+  } : {
+    'Primary Location': product.stock,
+  });
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
