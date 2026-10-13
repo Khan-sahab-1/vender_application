@@ -154,6 +154,7 @@ export const InventoryApiService = {
       body: JSON.stringify({
         name: (payload.name || '').trim(),
         description: (payload.description || '').trim() || null,
+        define_type: payload.define_type || payload.defineType || 'user_defined',
       }),
     });
   },
@@ -186,7 +187,19 @@ export const InventoryApiService = {
         is_base_unit: Boolean(payload.isBaseUnit ?? payload.is_base_unit),
         uom_type: payload.uom_type || (payload.isBaseUnit ? 'reference' : 'bigger'),
         rounding: Number(payload.rounding) || 0.01,
+        active: payload.active !== undefined ? Boolean(payload.active) : true,
       }),
+    });
+  },
+
+  /**
+   * PATCH /api/v1/inventory/uoms/:id/toggle-active
+   */
+  async toggleUomActive(uomId, token) {
+    const url = `${API_BASE_URL}${API_ENDPOINTS.UOMS}/${uomId}/toggle-active`;
+    return request(url, {
+      method: 'PATCH',
+      headers: getHeaders(token),
     });
   },
 

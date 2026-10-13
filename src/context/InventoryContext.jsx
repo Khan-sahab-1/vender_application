@@ -118,6 +118,7 @@ export const InventoryProvider = ({ children }) => {
             id: String(c.id),
             name: c.name,
             description: c.description || '',
+            define_type: c.define_type || 'user_defined',
           }))
         );
       } else {
@@ -135,6 +136,7 @@ export const InventoryProvider = ({ children }) => {
             isBaseUnit: Boolean(u.is_base_unit),
             uom_type: u.uom_type || 'reference',
             rounding: Number(u.rounding) || 0.01,
+            active: u.active !== undefined ? Boolean(u.active) : true,
           }))
         );
       } else {
@@ -261,6 +263,7 @@ export const InventoryProvider = ({ children }) => {
       id: String(created.id),
       name: created.name,
       description: created.description || '',
+      define_type: created.define_type || newCat.define_type || 'user_defined',
     };
     setUomCategories((prev) => [item, ...prev]);
     return item;
@@ -277,10 +280,26 @@ export const InventoryProvider = ({ children }) => {
       ratio: Number(created.ratio) || 1,
       isBaseUnit: Boolean(created.is_base_unit),
       uom_type: created.uom_type || 'reference',
-      rounding: Number(created.rounding) || 0.01,
+      rounding: Number(created.rounding) || Number(newUom.rounding) || 0.01,
+      active: created.active !== undefined ? Boolean(created.active) : (newUom.active !== undefined ? Boolean(newUom.active) : true),
     };
     setUomList((prev) => [item, ...prev]);
     return item;
+  };
+
+  const toggleUomActive = async (uomId) => {
+    try {
+      const updated = await InventoryApiService.toggleUomActive(uomId, authToken);
+      setUomList((prev) =>
+        prev.map((u) => (u.id === uomId ? { ...u, active: updated.active } : u))
+      );
+      return updated;
+    } catch (err) {
+      console.warn('Failed to toggle UOM active status via API, falling back to local toggle:', err);
+      setUomList((prev) =>
+        prev.map((u) => (u.id === uomId ? { ...u, active: !u.active } : u))
+      );
+    }
   };
 
   // Product Category CRUD
@@ -458,6 +477,7 @@ export const InventoryProvider = ({ children }) => {
         addUomCategory,
         uomList,
         addUom,
+        toggleUomActive,
         productCategories,
         addProductCategory,
         getNextSku,

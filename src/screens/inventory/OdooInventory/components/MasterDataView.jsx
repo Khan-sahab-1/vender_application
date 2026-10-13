@@ -42,6 +42,7 @@ export const MasterDataView = ({
     addUomCategory,
     uomList,
     addUom,
+    toggleUomActive,
     productCategories,
     addProductCategory,
     getNextSku,
@@ -64,6 +65,7 @@ export const MasterDataView = ({
 
   // Form states for UoM Category
   const [uomCatName, setUomCatName] = useState('');
+  const [uomCatDefineType, setUomCatDefineType] = useState('user_defined'); // 'user_defined' | 'pre_defined'
   const [uomCatDesc, setUomCatDesc] = useState('');
 
   // Form states for UoM
@@ -73,6 +75,8 @@ export const MasterDataView = ({
   );
   const [uomSymbol, setUomSymbol] = useState('');
   const [uomRatio, setUomRatio] = useState('1');
+  const [uomRounding, setUomRounding] = useState('0.010');
+  const [uomActive, setUomActive] = useState(true);
   const [uomIsBaseUnit, setUomIsBaseUnit] = useState(true);
 
   // Form states for Product Category
@@ -156,15 +160,16 @@ export const MasterDataView = ({
     try {
       await addUomCategory({
         name: uomCatName.trim(),
-        description: uomCatDesc.trim(),
+        define_type: uomCatDefineType,
+        description: uomCatDefineType === 'pre_defined' ? 'Pre Defined Category' : 'User Defined Category',
       });
       setUomCatName('');
-      setUomCatDesc('');
+      setUomCatDefineType('user_defined');
       setModalVisible(false);
       Alert.alert('Success', `UoM Category "${uomCatName}" created successfully!`);
     } catch (err) {
       setUomCatName('');
-      setUomCatDesc('');
+      setUomCatDefineType('user_defined');
       setModalVisible(false);
       Alert.alert('Category Added', `UoM Category "${uomCatName}" added.`);
     }
@@ -188,10 +193,14 @@ export const MasterDataView = ({
         symbol: (uomSymbol.trim() || uomName.slice(0, 3)).toUpperCase(),
         ratio: parseFloat(uomRatio) || 1.0,
         isBaseUnit: Boolean(uomIsBaseUnit),
+        rounding: parseFloat(uomRounding) || 0.01,
+        active: Boolean(uomActive),
       });
       setUomName('');
       setUomSymbol('');
       setUomRatio('1');
+      setUomRounding('0.010');
+      setUomActive(true);
       setUomIsBaseUnit(true);
       setModalVisible(false);
       Alert.alert('Success', `UoM "${uomName}" created successfully!`);
@@ -199,6 +208,8 @@ export const MasterDataView = ({
       setUomName('');
       setUomSymbol('');
       setUomRatio('1');
+      setUomRounding('0.010');
+      setUomActive(true);
       setModalVisible(false);
       Alert.alert('Unit Added', `UoM "${uomName}" added.`);
     }
@@ -405,17 +416,41 @@ export const MasterDataView = ({
                 <Text style={styles.emptyMasterText}>No UoM Categories found for this company.</Text>
               </View>
             ) : (
-              uomCategories.map((item) => (
-                <View key={item.id} style={styles.itemCard}>
-                  <View style={styles.cardMain}>
-                    <Text style={styles.cardTitle}>{item.name}</Text>
-                    <Text style={styles.cardSubtitle}>{item.description}</Text>
+              uomCategories.map((item) => {
+                const isPreDefined = item.define_type === 'pre_defined';
+                return (
+                  <View key={item.id} style={styles.itemCard}>
+                    <View style={styles.cardMain}>
+                      <Text style={styles.cardTitle}>{item.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 }}>
+                        <View
+                          style={[
+                            styles.defineTypeBadge,
+                            isPreDefined ? styles.defineTypeBadgePre : styles.defineTypeBadgeUser,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.defineTypeBadgeText,
+                              isPreDefined ? styles.defineTypeBadgeTextPre : styles.defineTypeBadgeTextUser,
+                            ]}
+                          >
+                            {isPreDefined ? 'Pre Defined' : 'User Defined'}
+                          </Text>
+                        </View>
+                        {item.description ? (
+                          <Text style={styles.cardSubtitle} numberOfLines={1}>
+                            • {item.description}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    <View style={styles.cardBadge}>
+                      <Text style={styles.cardBadgeText}>Odoo 11</Text>
+                    </View>
                   </View>
-                  <View style={styles.cardBadge}>
-                    <Text style={styles.cardBadgeText}>Odoo 11</Text>
-                  </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         )}
@@ -427,7 +462,7 @@ export const MasterDataView = ({
               <View>
                 <Text style={styles.sectionTitle}>Units of Measure (UoM)</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Primary and Purchase units with conversion ratios
+                  Primary and Purchase units with Active status & Rounding Precision
                 </Text>
               </View>
               <TouchableOpacity
@@ -443,23 +478,63 @@ export const MasterDataView = ({
                 <Text style={styles.emptyMasterText}>No Units of Measure found for this company.</Text>
               </View>
             ) : (
-              uomList.map((item, idx) => (
-                <View key={item.id || idx} style={styles.itemCard}>
-                  <View style={styles.cardMain}>
-                    <Text style={styles.cardTitle}>
-                      {item.name} {item.symbol ? `(${item.symbol})` : ''}
-                    </Text>
-                    <Text style={styles.cardSubtitle}>
-                      {item.isBaseUnit ? 'Base Reference Unit • ' : ''}Ratio: x{item.ratio || 1}
-                    </Text>
+              uomList.map((item, idx) => {
+                const isActive = item.active !== false;
+                const roundingVal = item.rounding !== undefined && item.rounding !== null
+                  ? Number(item.rounding).toFixed(3)
+                  : '0.010';
+
+                return (
+                  <View key={item.id || idx} style={styles.itemCard}>
+                    <View style={styles.cardMain}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <Text style={styles.cardTitle}>
+                          {item.name} {item.symbol ? `(${item.symbol})` : ''}
+                        </Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.statusPill,
+                            isActive ? styles.statusPillActive : styles.statusPillInactive,
+                          ]}
+                          onPress={() => toggleUomActive?.(item.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View
+                            style={[
+                              styles.statusDot,
+                              isActive ? styles.statusDotActive : styles.statusDotInactive,
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.statusPillText,
+                              isActive ? styles.statusPillTextActive : styles.statusPillTextInactive,
+                            ]}
+                          >
+                            {isActive ? 'Active' : 'Inactive'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5, flexWrap: 'wrap', gap: 6 }}>
+                        <Text style={styles.cardSubtitle}>
+                          {item.isBaseUnit ? 'Base Reference Unit • ' : ''}Ratio: x{item.ratio || 1}
+                        </Text>
+                        <View style={styles.roundingBadge}>
+                          <Text style={styles.roundingBadgeText}>
+                            Rounding: {roundingVal}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.ratioBadge}>
+                      <Text style={styles.ratioBadgeText}>
+                        {item.symbol || `x${item.ratio || 1}`}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.ratioBadge}>
-                    <Text style={styles.ratioBadgeText}>
-                      {item.symbol || `x${item.ratio || 1}`}
-                    </Text>
-                  </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         )}
@@ -853,30 +928,93 @@ export const MasterDataView = ({
 
             {/* Modal Body for UoM Category */}
             {activeTab === 'uom_cat' && (
-              <View style={styles.modalBody}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBody}>
                 <Input
-                  label="Category Name"
-                  placeholder="e.g. Surface, Temperature"
+                  label="Category Name *"
+                  placeholder="e.g. Surface, Temperature, Count"
                   value={uomCatName}
                   onChangeText={setUomCatName}
                 />
-                <Input
-                  label="Description"
-                  placeholder="Square meters, sq ft..."
-                  value={uomCatDesc}
-                  onChangeText={setUomCatDesc}
-                />
+
+                {/* Define Type Selector: User Defined vs Pre Defined */}
+                <View style={styles.defineTypeContainer}>
+                  <Text style={styles.selectorLabel}>Define Type *</Text>
+                  <View style={styles.defineTypeRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.defineTypeCard,
+                        uomCatDefineType === 'user_defined' && styles.defineTypeCardActive,
+                      ]}
+                      onPress={() => setUomCatDefineType('user_defined')}
+                      activeOpacity={0.8}
+                    >
+                      <View
+                        style={[
+                          styles.radioCircle,
+                          uomCatDefineType === 'user_defined' && styles.radioCircleActive,
+                        ]}
+                      >
+                        {uomCatDefineType === 'user_defined' && <View style={styles.radioInnerDot} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.defineTypeTitle,
+                            uomCatDefineType === 'user_defined' && styles.defineTypeTitleActive,
+                          ]}
+                        >
+                          User Defined
+                        </Text>
+                        <Text style={styles.defineTypeSub}>
+                          Custom measurement type created by vendor
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.defineTypeCard,
+                        uomCatDefineType === 'pre_defined' && styles.defineTypeCardActive,
+                      ]}
+                      onPress={() => setUomCatDefineType('pre_defined')}
+                      activeOpacity={0.8}
+                    >
+                      <View
+                        style={[
+                          styles.radioCircle,
+                          uomCatDefineType === 'pre_defined' && styles.radioCircleActive,
+                        ]}
+                      >
+                        {uomCatDefineType === 'pre_defined' && <View style={styles.radioInnerDot} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.defineTypeTitle,
+                            uomCatDefineType === 'pre_defined' && styles.defineTypeTitleActive,
+                          ]}
+                        >
+                          Pre Defined
+                        </Text>
+                        <Text style={styles.defineTypeSub}>
+                          Standard industry/system measurement type
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 <Button
                   title="Create Category"
                   variant="primary"
                   onPress={handleSaveUomCategory}
                 />
-              </View>
+              </ScrollView>
             )}
 
             {/* Modal Body for UoM */}
             {activeTab === 'uom' && (
-              <View style={styles.modalBody}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBody}>
                 <View style={styles.selectorGroup}>
                   <Text style={styles.selectorLabel}>Select Dimension Category</Text>
                   <View style={styles.selectorChips}>
@@ -906,31 +1044,107 @@ export const MasterDataView = ({
                 </View>
 
                 <Input
-                  label="Unit Name"
-                  placeholder="e.g. Kilogram"
+                  label="Unit Name *"
+                  placeholder="e.g. Kilogram, Meter, Box"
                   value={uomName}
                   onChangeText={setUomName}
                 />
+
                 <Input
-                  label="Symbol"
-                  placeholder="e.g. KG"
+                  label="Symbol / Unit Code *"
+                  placeholder="e.g. KG, MTR, BOX"
                   value={uomSymbol}
                   onChangeText={setUomSymbol}
                   autoCapitalize="characters"
                 />
+
                 <Input
-                  label="Ratio to Reference Unit"
+                  label="Ratio to Reference Unit *"
                   placeholder="1.0"
                   value={uomRatio}
                   onChangeText={setUomRatio}
                   keyboardType="numeric"
                 />
+
+                {/* Rounding Precision Section */}
+                <View style={styles.selectorGroup}>
+                  <Text style={styles.selectorLabel}>Rounding Precision (Odoo Standard)</Text>
+                  <View style={styles.selectorChips}>
+                    {['0.001', '0.010', '0.100', '1.000'].map((prec) => {
+                      const isSel = uomRounding === prec;
+                      return (
+                        <TouchableOpacity
+                          key={prec}
+                          style={[styles.smallChip, isSel && styles.smallChipActive]}
+                          onPress={() => setUomRounding(prec)}
+                        >
+                          <Text style={[styles.smallChipText, isSel && styles.smallChipTextActive]}>
+                            {prec}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <Input
+                  label="Custom Rounding Precision"
+                  placeholder="e.g. 0.010"
+                  value={uomRounding}
+                  onChangeText={setUomRounding}
+                  keyboardType="numeric"
+                />
+
+                {/* Active / Inactive Status Section */}
+                <View style={styles.statusSectionGroup}>
+                  <Text style={styles.selectorLabel}>Status (Active / Inactive)</Text>
+                  <View style={styles.statusToggleRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.statusToggleBtn,
+                        uomActive && styles.statusToggleBtnActive,
+                      ]}
+                      onPress={() => setUomActive(true)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.statusDot, styles.statusDotActive]} />
+                      <Text
+                        style={[
+                          styles.statusToggleBtnText,
+                          uomActive && styles.statusToggleBtnTextActive,
+                        ]}
+                      >
+                        Active
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.statusToggleBtn,
+                        !uomActive && styles.statusToggleBtnInactive,
+                      ]}
+                      onPress={() => setUomActive(false)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.statusDot, styles.statusDotInactive]} />
+                      <Text
+                        style={[
+                          styles.statusToggleBtnText,
+                          !uomActive && styles.statusToggleBtnTextInactive,
+                        ]}
+                      >
+                        Inactive
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 <Button
                   title="Save Unit"
                   variant="primary"
                   onPress={handleSaveUom}
                 />
-              </View>
+              </ScrollView>
             )}
 
             {/* Modal Body for Product Category */}
@@ -1434,5 +1648,176 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs + 1,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  // Define Type Badges in Cards
+  defineTypeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
+  defineTypeBadgeUser: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  defineTypeBadgePre: {
+    backgroundColor: '#F3E8FF',
+    borderColor: '#D8B4FE',
+  },
+  defineTypeBadgeText: {
+    fontSize: fontSize.xs - 2,
+    fontWeight: fontWeight.bold,
+  },
+  defineTypeBadgeTextUser: {
+    color: '#1D4ED8',
+  },
+  defineTypeBadgeTextPre: {
+    color: '#7E22CE',
+  },
+  // Active / Inactive Pill in UoM Cards
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: borderRadius.round,
+    borderWidth: 1,
+  },
+  statusPillActive: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  statusPillInactive: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusDotActive: {
+    backgroundColor: '#10B981',
+  },
+  statusDotInactive: {
+    backgroundColor: '#94A3B8',
+  },
+  statusPillText: {
+    fontSize: fontSize.xs - 2,
+    fontWeight: fontWeight.bold,
+  },
+  statusPillTextActive: {
+    color: '#065F46',
+  },
+  statusPillTextInactive: {
+    color: '#64748B',
+  },
+  // Rounding Precision Badge in UoM Cards
+  roundingBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: borderRadius.xs,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  roundingBadgeText: {
+    fontSize: fontSize.xs - 2,
+    fontWeight: fontWeight.bold,
+    color: '#92400E',
+  },
+  // Modal: Define Type Selection (User Defined vs Pre Defined)
+  defineTypeContainer: {
+    gap: spacing.xs,
+  },
+  defineTypeRow: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  defineTypeCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: spacing.sm + 2,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  defineTypeCardActive: {
+    borderColor: colors.odooPurple,
+    backgroundColor: colors.odooPurpleTint,
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#94A3B8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  radioCircleActive: {
+    borderColor: colors.odooPurple,
+  },
+  radioInnerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.odooPurple,
+  },
+  defineTypeTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  defineTypeTitleActive: {
+    color: colors.odooPurple,
+  },
+  defineTypeSub: {
+    fontSize: fontSize.xs - 1,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  // Modal: Active / Inactive Status Toggle
+  statusSectionGroup: {
+    gap: spacing.xs,
+  },
+  statusToggleRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statusToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  statusToggleBtnActive: {
+    borderColor: '#10B981',
+    backgroundColor: '#ECFDF5',
+  },
+  statusToggleBtnInactive: {
+    borderColor: '#94A3B8',
+    backgroundColor: '#F1F5F9',
+  },
+  statusToggleBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+  },
+  statusToggleBtnTextActive: {
+    color: '#065F46',
+  },
+  statusToggleBtnTextInactive: {
+    color: '#475569',
   },
 });
